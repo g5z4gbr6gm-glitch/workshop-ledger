@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -229,6 +232,23 @@
 </head>
 <body class="layout-sidebar">
 
+<div id="loginGate" style="display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;">
+  <div style="max-width:340px; width:100%; background:#241d17; border:1px solid #3a3025; border-radius:11px; padding:28px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+      <svg width="40" height="40" viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="none" stroke="#3a3025" stroke-width="1"/><circle cx="26" cy="26" r="19" fill="none" stroke="#9c3b30" stroke-width="2"/><circle cx="26" cy="26" r="15.5" fill="none" stroke="#a89a80" stroke-width="1.5"/><circle cx="26" cy="26" r="12" fill="none" stroke="#52704f" stroke-width="2"/><circle cx="26" cy="26" r="8.5" fill="none" stroke="#cc9a4a" stroke-width="1.5"/><circle cx="26" cy="26" r="5" fill="#18130f" stroke="#3a3025" stroke-width="1"/></svg>
+      <div style="font-family:'Fraunces',serif; font-size:1.4rem; color:#e8ddc7;">Workshop Ledger</div>
+    </div>
+    <div id="loginError" style="display:none; color:#c1443a; font-size:0.85rem; margin-bottom:12px;"></div>
+    <label style="font-family:'Inter',sans-serif; font-size:0.72rem; color:#a89a80; text-transform:uppercase; letter-spacing:0.7px; display:block; margin-bottom:5px;">Email</label>
+    <input type="email" id="login-email" style="width:100%; background:#18130f; border:1px solid #3a3025; color:#e8ddc7; padding:10px 12px; border-radius:7px; font-family:'Inter',sans-serif; font-size:16px; margin-bottom:12px; box-sizing:border-box;">
+    <label style="font-family:'Inter',sans-serif; font-size:0.72rem; color:#a89a80; text-transform:uppercase; letter-spacing:0.7px; display:block; margin-bottom:5px;">Password</label>
+    <input type="password" id="login-password" style="width:100%; background:#18130f; border:1px solid #3a3025; color:#e8ddc7; padding:10px 12px; border-radius:7px; font-family:'Inter',sans-serif; font-size:16px; margin-bottom:18px; box-sizing:border-box;">
+    <button id="loginBtn" style="width:100%; background:#cc9a4a; color:#18130f; border:none; padding:11px 20px; border-radius:7px; font-weight:600; font-size:0.95rem; cursor:pointer; font-family:'Inter',sans-serif;">Sign In</button>
+    <div style="font-family:'Inter',sans-serif; font-size:0.78rem; color:#a89a80; margin-top:14px; line-height:1.5;">First time? Ask me (Claude) to help you create your one login in the Firebase console — this app doesn't have a public sign-up, by design, since it's just for you.</div>
+  </div>
+</div>
+
+
 <div id="printArea"></div>
 
 <div class="system-controls">
@@ -247,7 +267,7 @@
   </label>
 </div>
 
-<div class="app-wrap">
+<div class="app-wrap" id="appWrap" style="display:none;">
   
   <aside class="app-sidebar">
     <header>
@@ -645,6 +665,86 @@ const MILESTONES = [
   {id: 'polished', en: 'Polished', th: 'ขัดเงา'}
 ];
 
+// ====== FIREBASE SETUP ======
+// Paste your own project's config here (from Firebase Console → Project Settings → Your apps).
+const firebaseConfig = {
+  apiKey: "AIzaSyBi9fzwS3dS2fiyGpsTJBZ6sNVDiyr6Tes",
+  authDomain: "workshop-ledger-840d7.firebaseapp.com",
+  projectId: "workshop-ledger-840d7",
+  storageBucket: "workshop-ledger-840d7.firebasestorage.app",
+  messagingSenderId: "108654224603",
+  appId: "1:108654224603:web:af3faa168df1729ca358fe"
+};
+
+let db = null;
+let currentUid = null;
+let firestoreUnsubscribe = null;
+
+if (firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY_HERE") {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+
+  firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+      currentUid = user.uid;
+      document.getElementById('loginGate').style.display = 'none';
+      document.getElementById('appWrap').style.display = '';
+      attachFirestoreListener();
+    } else {
+      currentUid = null;
+      document.getElementById('loginGate').style.display = 'flex';
+      document.getElementById('appWrap').style.display = 'none';
+      if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
+    }
+  });
+
+  document.getElementById('loginBtn').addEventListener('click', () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    firebase.auth().signInWithEmailAndPassword(email, password).catch((err) => {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    });
+  });
+} else {
+  // No Firebase config yet -- fall back to this device's local storage only, exactly as before.
+  document.getElementById('loginGate').style.display = 'none';
+  document.getElementById('appWrap').style.display = '';
+}
+
+function attachFirestoreListener(){
+  const docRef = db.collection('ledgers').doc(currentUid);
+  firestoreUnsubscribe = docRef.onSnapshot((doc) => {
+    const data = doc.exists ? doc.data() : {};
+    inventory = data.inventory || [];
+    builds = data.builds || [];
+    finishedStock = data.finishedStock || [];
+    customers = data.customers || [];
+    orders = data.orders || [];
+    suppliers = data.suppliers || [];
+    repairs = data.repairs || [];
+    businessInfo = data.businessInfo || { name: '', contact: '', note: '' };
+
+    updateSupplierDropdown(); updateInventoryDropdowns(); updateCustomerDropdowns();
+    renderFinancials(); renderCalendar(); renderInventory(); renderBuilds(); renderStock(); renderCustomers(); renderOrders(); renderSuppliers(); renderRepairs(); renderSummary();
+  }, (err) => {
+    console.error('Firestore sync error:', err);
+  });
+}
+
+async function saveToCloud(){
+  if (!db || !currentUid) return;
+  try {
+    await db.collection('ledgers').doc(currentUid).set({
+      inventory, builds, finishedStock, customers, orders, suppliers, repairs, businessInfo
+    });
+  } catch(e) {
+    console.error('Cloud save failed:', e);
+  }
+}
+
 let inventory = []; let builds = []; let finishedStock = []; let customers = []; let orders = []; let suppliers = []; let repairs = [];
 let businessInfo = { name: '', contact: '', note: '' };
 function editBusinessInfo(){
@@ -654,6 +754,7 @@ function editBusinessInfo(){
   if(contact === null) return;
   businessInfo = { name, contact, note: businessInfo.note || '' };
   try{ localStorage.setItem('business-info', JSON.stringify(businessInfo)); }catch(e){}
+  saveToCloud();
   renderFinancials();
 }
 
@@ -671,13 +772,13 @@ function loadAll(){
   renderFinancials(); renderCalendar(); renderInventory(); renderBuilds(); renderStock(); renderCustomers(); renderOrders(); renderSuppliers(); renderRepairs(); renderSummary();
 }
 
-function saveInventory(){ try{ localStorage.setItem('inventory-stock', JSON.stringify(inventory)); }catch(e){ console.error('save failed',e); } }
-function saveBuilds(){ try{ localStorage.setItem('builds-in-process', JSON.stringify(builds)); }catch(e){ console.error('save failed',e); } }
-function saveStock(){ try{ localStorage.setItem('finished-stock', JSON.stringify(finishedStock)); }catch(e){ console.error('save failed',e); } }
-function saveCustomers(){ try{ localStorage.setItem('customers', JSON.stringify(customers)); }catch(e){ console.error('save failed',e); } }
-function saveOrders(){ try{ localStorage.setItem('orders', JSON.stringify(orders)); }catch(e){ console.error('save failed',e); } }
-function saveSuppliers(){ try{ localStorage.setItem('suppliers', JSON.stringify(suppliers)); }catch(e){ console.error('save failed',e); } }
-function saveRepairs(){ try{ localStorage.setItem('repairs', JSON.stringify(repairs)); }catch(e){ console.error('save failed',e); } }
+function saveInventory(){ try{ localStorage.setItem('inventory-stock', JSON.stringify(inventory)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
+function saveBuilds(){ try{ localStorage.setItem('builds-in-process', JSON.stringify(builds)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
+function saveStock(){ try{ localStorage.setItem('finished-stock', JSON.stringify(finishedStock)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
+function saveCustomers(){ try{ localStorage.setItem('customers', JSON.stringify(customers)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
+function saveOrders(){ try{ localStorage.setItem('orders', JSON.stringify(orders)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
+function saveSuppliers(){ try{ localStorage.setItem('suppliers', JSON.stringify(suppliers)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
+function saveRepairs(){ try{ localStorage.setItem('repairs', JSON.stringify(repairs)); }catch(e){ console.error('save failed',e); } saveToCloud(); }
 
 function updateSupplierDropdown() {
   const dropdown = document.getElementById('i-supplier'); let options = '<option value="">-- None --</option>';
@@ -905,8 +1006,6 @@ function renderBuilds(){
         </div>
         <div class="card-actions">
           <select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateBuildStage(${i}, this.value)">${Object.entries(STAGE_LABELS).map(([k,v]) => `<option value="${k}" ${b.stage===k?'selected':''}>${v}</option>`).join('')}</select>
-          <div style="font-family: Inter; font-size: 0.8rem; margin-top:5px; color:var(--wood);"><strong>${b.hours || 0} Hours</strong></div>
-          <div style="display:flex; gap:4px;"><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem" onclick="adjustHours(${i}, 1)">+ 1 Hr</button><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem" onclick="adjustHours(${i}, -1)">- 1 Hr</button></div>
           <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="moveToStock(${i})">${currentLang==='en'?'Move to Finished Stock':'ย้ายไปสต๊อกสำเร็จ'}</button>
           <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="duplicateBuild(${i})">${currentLang==='en'?'Duplicate':'ทำซ้ำ'}</button>
           <button class="btn danger-text" style="margin-top:auto;" onclick="deleteBuild(${i})">Remove</button>
@@ -1190,7 +1289,7 @@ document.getElementById('buildForm').addEventListener('submit', async (e) => {
   const pliageVal = isGJ ? document.getElementById('b-pliage').value : '';
   const bracingVal = isGJ ? document.getElementById('b-gj-bracing').value : (isClassical ? document.getElementById('b-classical-bracing').value : '');
   const skipDeduct = document.getElementById('b-skip-deduct').checked;
-  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, hours: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null };
+  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null };
   let deductOccurred = false;
   dropdownIds.forEach((ddId, index) => {
     const val = document.getElementById(ddId).value;
@@ -1266,7 +1365,7 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
   e.preventDefault(); orders.push({ id: Date.now(), customer: document.getElementById('o-customer').value, type: document.getElementById('o-type').value, status: document.getElementById('o-status').value, price: document.getElementById('o-price').value, deposit: document.getElementById('o-deposit').value, date: document.getElementById('o-date').value, notes: document.getElementById('o-notes').value }); await saveOrders(); e.target.reset(); renderOrders(); renderFinancials(); renderCalendar(); renderSummary();
 });
 
-async function adjustHours(i, delta) { builds[i].hours = Math.max(0, (builds[i].hours || 0) + delta); await saveBuilds(); renderBuilds(); }
+
 async function updateBuildStage(i, stage){ builds[i].stage = stage; builds[i].stageUpdated = Date.now(); await saveBuilds(); renderBuilds(); renderToday(); }
 async function updateStockStatus(i, status){ finishedStock[i].status = status; await saveStock(); renderStock(); renderFinancials(); }
 async function updateOrderStatus(i, status){ orders[i].status = status; await saveOrders(); renderOrders(); renderFinancials(); }
@@ -1298,7 +1397,6 @@ async function moveToStock(i){
     status: isCust ? 'reserved' : 'available',
     price: '',
     cost: b.materialCost || 0,
-    hours: b.hours || 0,
     completed: new Date().toISOString().slice(0,10),
     notes: b.notes || ''
   });
@@ -1351,7 +1449,8 @@ document.querySelectorAll('.nav-container button').forEach(btn => {
   });
 });
 
-loadAll();
+if (!db) { loadAll(); }
+// When db IS configured, attachFirestoreListener() (called from onAuthStateChanged after sign-in) handles loading instead.
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
