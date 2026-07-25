@@ -647,24 +647,18 @@ const MILESTONES = [
 
 let inventory = []; let builds = []; let finishedStock = []; let customers = []; let orders = []; let suppliers = []; let repairs = [];
 let businessInfo = { name: '', contact: '', note: '' };
-let hourlyRate = 0;
-
 function editBusinessInfo(){
   const name = prompt(currentLang==='en' ? 'Your name / workshop name (appears on printed invoices & spec sheets):' : 'ชื่อคุณ / ชื่อร้าน (จะแสดงบนใบแจ้งหนี้และสเปคที่พิมพ์):', businessInfo.name || '');
   if(name === null) return;
   const contact = prompt(currentLang==='en' ? 'Contact info (phone, email, or Line ID):' : 'ข้อมูลติดต่อ (เบอร์โทร, อีเมล, หรือ Line ID):', businessInfo.contact || '');
   if(contact === null) return;
-  const rateInput = prompt(currentLang==='en' ? 'Your hourly rate (THB) — used to estimate labor cost in the Financial Dashboard:' : 'ค่าแรงต่อชั่วโมง (บาท) — ใช้คำนวณต้นทุนแรงงานในแดชบอร์ดการเงิน:', hourlyRate || '0');
-  if(rateInput === null) return;
   businessInfo = { name, contact, note: businessInfo.note || '' };
-  hourlyRate = Number(rateInput) || 0;
-  try{ localStorage.setItem('business-info', JSON.stringify(businessInfo)); localStorage.setItem('hourly-rate', String(hourlyRate)); }catch(e){}
+  try{ localStorage.setItem('business-info', JSON.stringify(businessInfo)); }catch(e){}
   renderFinancials();
 }
 
 function loadAll(){
   try{ const bi = localStorage.getItem('business-info'); businessInfo = bi ? JSON.parse(bi) : { name:'', contact:'', note:'' }; }catch(e){}
-  try{ const hr = localStorage.getItem('hourly-rate'); hourlyRate = hr ? Number(hr) : 0; }catch(e){ hourlyRate = 0; }
   try{ const inv = localStorage.getItem('inventory-stock'); inventory = inv ? JSON.parse(inv) : []; }catch(e){ inventory = []; }
   try{ const b = localStorage.getItem('builds-in-process'); builds = b ? JSON.parse(b) : []; }catch(e){ builds = []; }
   try{ const s = localStorage.getItem('finished-stock'); finishedStock = s ? JSON.parse(s) : []; }catch(e){ finishedStock = []; }
@@ -760,17 +754,16 @@ function renderToday(){
 
 function renderFinancials() {
   const dashboard = document.getElementById('financeDashboard');
-  let revenue = 0; let totalCost = 0; let pending = 0; let wipValue = 0; let laborCost = 0;
-  finishedStock.forEach(s => { if(s.status === 'sold') { revenue += parseCurrency(s.price); totalCost += parseCurrency(s.cost); laborCost += Number(s.hours || 0) * hourlyRate; } });
+  let revenue = 0; let totalCost = 0; let pending = 0; let wipValue = 0;
+  finishedStock.forEach(s => { if(s.status === 'sold') { revenue += parseCurrency(s.price); totalCost += parseCurrency(s.cost); } });
   orders.forEach(o => { if(o.status !== 'done' && !o.archived) { const p = parseCurrency(o.price); const d = parseCurrency(o.deposit); pending += Math.max(0, p - d); } });
   builds.forEach(b => { if(b.stage !== 'setup') { wipValue += Number(b.materialCost || 0); } });
-  const profit = revenue - totalCost - laborCost; const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
+  const profit = revenue - totalCost; const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
 
   dashboard.innerHTML = `
     <div class="finance-card"><div class="val">${formatCurrency(revenue)}</div><div class="title">${currentLang === 'en' ? 'Total Revenue (Sold)' : 'รายได้รวม (ขายแล้ว)'}</div></div>
     <div class="finance-card"><div class="val warn">${formatCurrency(pending)}</div><div class="title">${currentLang === 'en' ? 'Pending Deposits/Payments' : 'รอชำระ (คำสั่งซื้อ)'}</div></div>
-    <div class="finance-card"><div class="val" style="color:var(--wood-dim)">${formatCurrency(laborCost)}</div><div class="title">${currentLang === 'en' ? `Labor Cost (@ ${hourlyRate}/hr)` : `ต้นทุนแรงงาน (@ ${hourlyRate}/ชม.)`}</div></div>
-    <div class="finance-card"><div class="val ${profit < 0 ? 'warn' : ''}">${formatCurrency(profit)}</div><div class="title">${currentLang === 'en' ? 'Est. Total Profit (incl. labor)' : 'กำไรโดยประมาณ (รวมแรงงาน)'}</div></div>
+    <div class="finance-card"><div class="val ${profit < 0 ? 'warn' : ''}">${formatCurrency(profit)}</div><div class="title">${currentLang === 'en' ? 'Est. Total Profit' : 'กำไรโดยประมาณ'}</div></div>
     <div class="finance-card"><div class="val">${margin}%</div><div class="title">${currentLang === 'en' ? 'Profit Margin' : 'อัตรากำไร'}</div></div>
     <div class="finance-card"><div class="val" style="color:var(--wood-dim)">${formatCurrency(wipValue)}</div><div class="title">${currentLang === 'en' ? 'Materials Tied Up in Active Builds' : 'มูลค่าวัสดุในงานที่กำลังสร้าง'}</div></div>
   `;
