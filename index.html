@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Workshop Ledger</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#18130f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #18130f;
+    --panel: #241d17;
+    --panel-raised: #2f2720;
+    --wood: #cc9a4a;
+    --wood-dim: #96733d;
+    --cream: #e8ddc7;
+    --cream-dim: #a89a80;
+    --stripe-red: #9c3b30;
+    --stripe-green: #52704f;
+    --danger: #c1443a;
+    --ok: #5f8c5a;
+    --warn: #c98a3a;
+    --border: #3a3025;
+    --focus: #e0b368;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 900px 400px at 50% -10%, rgba(204,154,74,0.06), transparent),
+      var(--bg);
+    color:var(--cream);
+    font-family: 'Fraunces', 'Georgia', serif;
+    -webkit-font-smoothing:antialiased;
+    transition: all 0.3s ease;
+  }
+  .utility{font-family: 'Inter', 'Inter', -apple-system, sans-serif;}
+  ::selection{background:var(--wood); color:#18130f;}
+
+  a, button, input, select, textarea{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+
+  /* --- PRINT STYLES --- */
+  #printArea { display: none; }
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; color: #000 !important; background: #fff !important; font-family: 'Inter', sans-serif; }
+    #printArea { display: block; position: absolute; left: 0; top: 0; width: 100%; padding: 40px; }
+    #printArea h2 { font-family: 'Fraunces', serif; margin-top: 0; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    #printArea p { margin: 8px 0; font-size: 1rem; line-height: 1.5; }
+    .app-wrap, .system-controls { display: none !important; }
+    @page { margin: 1cm; }
+  }
+
+  /* --- LAYOUT SWITCHER STYLES --- */
+  .app-wrap { margin: 0 auto; padding: 50px 20px 70px; transition: all 0.3s ease; }
+
+  body.layout-sidebar .app-wrap { display: flex; gap: 40px; max-width: 1200px; }
+  body.layout-sidebar .app-sidebar { width: 240px; flex-shrink: 0; }
+  body.layout-sidebar .app-main { flex: 1; min-width: 0; }
+  body.layout-sidebar header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 30px; }
+  body.layout-sidebar .header-text { margin-top: 15px; }
+  body.layout-sidebar .nav-group { margin-bottom: 24px; display: flex; flex-direction: column; gap: 6px; }
+  body.layout-sidebar .nav-title { font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--wood-dim); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  body.layout-sidebar .nav-container button { text-align: left; width: 100%; }
+
+  body.layout-cluster .app-wrap { display: block; max-width: 900px; }
+  body.layout-cluster .app-sidebar { width: 100%; margin-bottom: 30px; }
+  body.layout-cluster header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+  body.layout-cluster .nav-container { display: flex; flex-wrap: wrap; gap: 20px; background: var(--panel); padding: 20px; border-radius: 9px; border: 1px solid var(--border); }
+  body.layout-cluster .nav-group { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 6px; }
+  body.layout-cluster .nav-title { font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--wood-dim); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  body.layout-cluster .nav-container button { text-align: center; width: 100%; }
+
+  body.layout-minimal .app-wrap { display: block; max-width: 900px; }
+  body.layout-minimal .app-sidebar { width: 100%; margin-bottom: 20px; }
+  body.layout-minimal header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+  body.layout-minimal .nav-container { display: flex; flex-wrap: wrap; gap: 8px; }
+  body.layout-minimal .nav-group { display: contents; } 
+  body.layout-minimal .nav-title { display: none; } 
+  body.layout-minimal .nav-container button { padding: 9px 18px; }
+
+  /* --- CORE STYLES --- */
+  .stripe{ height:3px; display:flex; margin:22px 0 28px; border-radius:2px; overflow:hidden; opacity:0.85; }
+  .stripe div{flex:1;}
+  .stripe .s1{background:var(--border);} .stripe .s2{background:var(--cream-dim); opacity:0.4;}
+  .stripe .s3{background:var(--stripe-red);} .stripe .s4{background:var(--stripe-green);} .stripe .s5{background:var(--wood);}
+
+  .nav-container button{
+    font-family: 'Inter', -apple-system, sans-serif; background:none; border:1px solid var(--border);
+    color:var(--cream-dim); padding:9px 15px; border-radius:7px; cursor:pointer; font-size:0.85rem;
+    font-weight:500; transition:all 0.18s ease;
+  }
+  .nav-container button.active{ background:var(--wood); border-color:var(--wood); color:#18130f; font-weight:600; }
+  .nav-container button:not(.active):hover{ border-color:var(--wood-dim); color:var(--cream); background:var(--panel); }
+
+  .summary-row{ display:flex; gap:14px; margin-bottom:28px; font-family: 'Inter', -apple-system, sans-serif; flex-wrap:wrap; }
+  .summary-card{ flex:1; min-width:110px; background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:14px 16px; transition:border-color 0.15s ease; }
+  .summary-card:hover{border-color:var(--wood-dim);}
+  .summary-card .num{font-size:1.7rem; color:var(--wood); font-family:'Fraunces',serif; font-weight:600;}
+  .summary-card .label{font-size:0.72rem; color:var(--cream-dim); text-transform:uppercase; letter-spacing:0.8px; margin-top:3px;}
+
+  .finance-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 24px; }
+  .finance-card { background: var(--panel-raised); padding: 20px; border-radius: 9px; border: 1px solid var(--border); text-align: center; }
+  .finance-card .val { font-size: 2rem; color: var(--ok); font-family: 'Fraunces', serif; font-weight: 600; }
+  .finance-card .val.warn { color: var(--warn); }
+  .finance-card .title { font-family: 'Inter', sans-serif; font-size: 0.8rem; color: var(--cream-dim); text-transform: uppercase; margin-top: 5px; letter-spacing: 1px; }
+
+  section{display:none;} section.active{display:block;}
+
+  form{ background:var(--panel); border:1px solid var(--border); border-radius:11px; padding:20px; margin-bottom:24px; }
+  form .row{display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;} form .row > *{flex:1; min-width:120px;}
+  label{ font-family: 'Inter', -apple-system, sans-serif; font-size:0.7rem; color:var(--cream-dim); text-transform:uppercase; letter-spacing:0.7px; display:block; margin-bottom:5px; }
+  input, select, textarea{ width:100%; background:var(--bg); border:1px solid var(--border); color:var(--cream); padding:9px 11px; border-radius:7px; font-family: 'Inter', -apple-system, sans-serif; font-size:0.92rem; transition:border-color 0.15s ease; }
+  input[type="checkbox"] { width: auto; margin-right: 8px; }
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--wood);} textarea{resize:vertical; min-height:44px;}
+
+  .search-bar{margin-bottom: 15px;}
+
+  .btn{ font-family: 'Inter', -apple-system, sans-serif; background:var(--wood); color:#18130f; border:none; padding:9px 20px; border-radius:7px; font-weight:600; font-size:0.9rem; cursor:pointer; transition:background 0.15s ease, transform 0.1s ease; text-decoration: none; display: inline-block; text-align: center; }
+  .btn:hover{background:var(--focus); transform:translateY(-1px);} .btn:active{transform:translateY(0);}
+  .btn.secondary{background:none; border:1px solid var(--border); color:var(--cream-dim);} .btn.secondary:hover{border-color:var(--wood-dim); color:var(--cream); background:none; transform:none;}
+  .btn.danger-text{background:none;border:none;color:var(--danger);padding:4px 8px;font-size:0.8rem;} .btn.danger-text:hover{background:none; transform:none; text-decoration:underline;}
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; transition:border-color 0.15s ease, transform 0.15s ease; }
+  .card:hover{border-color:var(--wood-dim); transform:translateY(-1px);} .card.low{border-color:var(--danger);}
+  .card-main{flex:1;} .card-title{font-size:1.05rem; color:var(--cream); display:flex; align-items:center; gap:10px;}
+  .card-meta{ font-family: 'Inter', -apple-system, sans-serif; font-size:0.8rem; color:var(--cream-dim); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .card-specs{ font-family: 'Inter', -apple-system, sans-serif; font-size:0.75rem; color:var(--wood-dim); margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; background: var(--bg); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); }
+  
+  .checklist { margin-top: 10px; background: var(--panel-raised); padding: 10px; border-radius: 6px; }
+  .checklist-title { font-family: 'Inter', sans-serif; font-size: 0.75rem; color: var(--wood); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .checklist-items { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .checklist label { display: flex; align-items: center; text-transform: none; font-size: 0.8rem; color: var(--cream); margin: 0; cursor: pointer; }
+  .checklist label.done { text-decoration: line-through; color: var(--cream-dim); }
+
+  .qty-pill{background:var(--panel-raised); padding:2px 9px; border-radius:20px; font-weight:600;} .qty-pill.low{background:var(--danger); color:#fff;}
+  .badge{ padding:2px 10px; border-radius:20px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.5px; font-family: 'Inter', -apple-system, sans-serif; }
+  .badge.inquiry{background:#3a3226; color:var(--wood);} .badge.progress{background:#2e3a3a; color:#7fb8b8;}
+  .badge.waiting{background:#3a2e2e; color:var(--warn);} .badge.finishing{background:#2e3a2e; color:var(--ok);}
+  .badge.done{background:var(--wood); color:#1c1712;} .badge.stage{background:#38302a; color:var(--wood);}
+
+  .stage-track{display:flex; gap:3px; margin-top:8px;} .stage-track div{flex:1; height:4px; background:var(--border); border-radius:2px;} .stage-track div.filled{background:var(--wood);}
+  .card-actions{display:flex; flex-direction:column; gap:4px; align-items:flex-end; min-width: 120px;}
+  .card-note{ font-family: 'Inter', -apple-system, sans-serif; font-size:0.82rem; color:var(--cream-dim); margin-top:6px; font-style:italic; }
+  .empty{text-align:center; padding:40px 20px; color:var(--cream-dim); font-family: 'Inter', sans-serif; font-size:0.9rem;}
+  
+  h1{font-size:2.3rem; margin:0; letter-spacing:0.2px; font-weight:600; color:var(--cream);}
+  .sub{font-family:'Inter', sans-serif; color:var(--wood-dim); font-size:0.8rem; letter-spacing:1.8px; text-transform:uppercase; margin-top:5px;}
+
+  .system-controls { position: absolute; top: 15px; right: 20px; display: flex; gap: 10px; z-index: 100; align-items: center; }
+
+  /* Calendar CSS */
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+  .calendar-day { border: 1px solid var(--border); min-height: 80px; padding: 5px; background: var(--panel); border-radius: 4px; display: flex; flex-direction: column; }
+  .calendar-day-header { font-size: 0.7rem; color: var(--cream-dim); text-align: right; margin-bottom: 5px; }
+  .calendar-event { font-family: 'Inter', sans-serif; font-size: 0.65rem; background: var(--wood); color: #000; padding: 2px 4px; border-radius: 3px; margin-bottom: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .calendar-event.repair { background: var(--stripe-green); color: #fff; }
+  .day-name { text-align: center; font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: bold; color: var(--wood-dim); text-transform: uppercase; }
+
+  /* --- PHONE-FRIENDLY STYLES --- */
+  @media (max-width: 760px) {
+    .app-wrap { padding: 16px 12px 50px !important; }
+
+    /* Force every layout variant to stack vertically on phone, regardless of which one is selected */
+    body.layout-sidebar .app-wrap,
+    body.layout-cluster .app-wrap,
+    body.layout-minimal .app-wrap { display: block; max-width: 100%; }
+    body.layout-sidebar .app-sidebar,
+    body.layout-cluster .app-sidebar,
+    body.layout-minimal .app-sidebar { width: 100%; margin-bottom: 18px; }
+
+    header { flex-wrap: wrap; }
+    h1 { font-size: 1.5rem; }
+    .sub { font-size: 0.68rem; letter-spacing: 1px; }
+
+    /* System controls: stop floating over the header, stack as a normal row that wraps */
+    .system-controls {
+      position: static; margin-bottom: 16px; flex-wrap: wrap;
+      justify-content: flex-start; gap: 6px;
+    }
+    .system-controls .btn, .system-controls select { font-size: 0.7rem !important; padding: 6px 8px !important; }
+
+    /* Nav: horizontally scrollable row of tappable buttons instead of a grid of small ones */
+    .nav-container { display: flex !important; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+    .nav-group { display: contents !important; }
+    .nav-title { display: none !important; }
+    .nav-container button { flex: 0 0 auto; padding: 10px 16px !important; font-size: 0.85rem; white-space: nowrap; }
+
+    /* Summary + finance cards: 2 per row instead of squeezing 4-5 into one line */
+    .summary-row, .finance-dashboard { gap: 8px; }
+    .summary-card, .finance-card { flex: 1 1 calc(50% - 8px); min-width: calc(50% - 8px); padding: 12px; }
+    .summary-card .num, .finance-card .val { font-size: 1.4rem; }
+
+    /* Forms: fully stacked, single column, larger tap targets */
+    form { padding: 14px; }
+    form .row { flex-direction: column; gap: 10px; margin-bottom: 10px; }
+    form .row > * { min-width: 100%; }
+    input, select, textarea, .btn { font-size: 16px; } /* 16px prevents iOS auto-zoom on focus */
+    .btn { padding: 12px 20px; width: 100%; }
+    form .btn[type="submit"] { width: 100%; }
+
+    /* Cards: stack content above actions instead of side-by-side, and make action buttons full-width */
+    .card { flex-direction: column; }
+    .card-actions { flex-direction: column; align-items: stretch; width: 100%; min-width: 0; margin-top: 10px; }
+    .card-actions .btn, .card-actions select { width: 100%; }
+    .card-actions > div[style*="display:flex"] { flex-direction: row; }
+
+    .checklist-items { grid-template-columns: 1fr; }
+
+    /* Calendar: shrink aggressively so 7 columns still fit a phone width */
+    .calendar-grid { gap: 2px; }
+    .calendar-day { min-height: 46px; padding: 3px; }
+    .calendar-day-header { font-size: 0.62rem; }
+    .calendar-event { font-size: 0.55rem; padding: 1px 2px; }
+    .day-name { font-size: 0.6rem; }
+    .calendar-header { flex-wrap: wrap; gap: 8px; }
+    .calendar-header h2 { font-size: 1.2rem; }
+
+    .search-bar { font-size: 16px; padding: 10px 12px; }
+  }
+</style>
+</head>
+<body class="layout-sidebar">
+
+<div id="printArea"></div>
+
+<div class="system-controls">
+  <select id="layoutToggle" onchange="document.body.className = this.value" class="utility" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 4px; background: var(--panel); color: var(--cream); border: 1px solid var(--border); cursor:pointer;">
+    <option value="layout-sidebar">Layout: Left Sidebar</option>
+    <option value="layout-cluster">Layout: Top Clusters</option>
+    <option value="layout-minimal">Layout: Minimal Row</option>
+  </select>
+  <button id="langToggle" class="btn secondary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="toggleLanguage()">EN / TH</button>
+  <button id="csvBtn" class="btn secondary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="exportCSV()"><span class="i18n" data-en="Export CSVs" data-th="ส่งออก CSV">Export CSVs</span></button>
+  <button id="businessInfoBtn" class="btn secondary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="editBusinessInfo()"><span class="i18n" data-en="Business Info" data-th="ข้อมูลร้าน">Business Info</span></button>
+  <button id="exportBtn" class="btn secondary" style="padding: 4px 8px; font-size: 0.75rem;"><span class="i18n" data-en="Backup (.json)" data-th="สำรอง (.json)">Backup (.json)</span></button>
+  <label class="btn secondary" style="cursor: pointer; padding: 4px 8px; font-size: 0.75rem; margin: 0;">
+    <span class="i18n" data-en="Restore (.json)" data-th="นำเข้า (.json)">Restore (.json)</span>
+    <input type="file" id="importFile" accept=".json" style="display: none;">
+  </label>
+</div>
+
+<div class="app-wrap">
+  
+  <aside class="app-sidebar">
+    <header>
+      <svg width="52" height="52" viewBox="0 0 52 52" style="flex-shrink:0">
+        <circle cx="26" cy="26" r="23" fill="none" stroke="#3a3025" stroke-width="1"/>
+        <circle cx="26" cy="26" r="19" fill="none" stroke="var(--stripe-red)" stroke-width="2"/>
+        <circle cx="26" cy="26" r="15.5" fill="none" stroke="var(--cream-dim)" stroke-width="1.5"/>
+        <circle cx="26" cy="26" r="12" fill="none" stroke="var(--stripe-green)" stroke-width="2"/>
+        <circle cx="26" cy="26" r="8.5" fill="none" stroke="var(--wood)" stroke-width="1.5"/>
+        <circle cx="26" cy="26" r="5" fill="var(--bg)" stroke="#3a3025" stroke-width="1"/>
+      </svg>
+      <div class="header-text">
+        <h1 class="i18n" data-en="Workshop Ledger" data-th="บัญชีเวิร์กช็อป">Workshop Ledger</h1>
+        <div class="sub i18n" data-en="Inventory & order tracking" data-th="ติดตามวัสดุและคำสั่งซื้อ">Inventory & order tracking</div>
+      </div>
+    </header>
+
+    <div class="nav-container">
+      <div class="nav-group">
+        <button data-tab="today" id="todayNavBtn" style="font-weight:600;">Today</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-title i18n" data-en="The Shop Floor" data-th="พื้นที่ปฏิบัติงาน">The Shop Floor</div>
+        <button data-tab="builds" class="active i18n" data-en="Active Builds" data-th="กำลังสร้าง">Active Builds</button>
+        <button data-tab="repairs" class="i18n" data-en="Repairs" data-th="งานซ่อมแซม">Repairs</button>
+        <button data-tab="stock" class="i18n" data-en="Finished Stock" data-th="กีตาร์ในสต๊อก">Finished Stock</button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title i18n" data-en="Supply Room" data-th="ห้องวัสดุ">Supply Room</div>
+        <button data-tab="inventory" class="i18n" data-en="Inventory" data-th="คลังวัสดุ">Inventory</button>
+        <button data-tab="suppliers" class="i18n" data-en="Suppliers" data-th="ซัพพลายเออร์">Suppliers</button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title i18n" data-en="Front Office" data-th="ออฟฟิศ">Front Office</div>
+        <button data-tab="financials" class="i18n" data-en="Financial Dashboard" data-th="แดชบอร์ดการเงิน">Financial Dashboard</button>
+        <button data-tab="calendar" class="i18n" data-en="Schedule Calendar" data-th="ปฏิทิน">Schedule Calendar</button>
+        <button data-tab="orders" class="i18n" data-en="Orders" data-th="คำสั่งซื้อ">Orders</button>
+        <button data-tab="customers" class="i18n" data-en="Customer Ledger" data-th="สมุดลูกค้า">Customer Ledger</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <div class="stripe"><div class="s1"></div><div class="s2"></div><div class="s3"></div><div class="s2"></div><div class="s4"></div><div class="s2"></div><div class="s5"></div></div>
+    
+    <div class="summary-row" id="summaryRow"></div>
+
+    <!-- TODAY / ATTENTION TAB -->
+    <section id="today">
+      <div id="todayList"></div>
+    </section>
+
+    <!-- FINANCIALS TAB -->
+    <section id="financials">
+      <div class="finance-dashboard" id="financeDashboard"></div>
+    </section>
+
+    <!-- CALENDAR TAB -->
+    <section id="calendar">
+       <div class="calendar-header">
+         <button class="btn secondary" onclick="changeMonth(-1)">&#8592; Prev</button>
+         <h2 id="calendarMonthYear" style="margin:0; font-family: 'Fraunces', serif;"></h2>
+         <button class="btn secondary" onclick="changeMonth(1)">Next &#8594;</button>
+       </div>
+       <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+
+    <!-- INVENTORY TAB -->
+    <section id="inventory">
+      <form id="inventoryForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Item / Material" data-th="รายการ / วัสดุ">Item / Material</span></label><input type="text" id="i-name" placeholder="e.g. Indian Rosewood, Gotoh Tuners" required></div>
+          <div><label><span class="i18n" data-en="Category" data-th="หมวดหมู่">Category</span></label><select id="i-category"><option value="wood">Wood</option><option value="hardware">Hardware (Tuners, Tailpiece)</option><option value="strings">Strings</option><option value="bone">Bone (Nut/Saddle)</option><option value="frets">Frets</option><option value="other">Other</option></select></div>
+          <div><label><span class="i18n" data-en="Supplier (Optional)" data-th="ซัพพลายเออร์">Supplier (Optional)</span></label><select id="i-supplier" class="sup-dropdown"><option value="">-- None --</option></select></div>
+          <div><label><span class="i18n" data-en="Quantity" data-th="จำนวน">Quantity</span></label><input type="number" id="i-qty" min="0" step="0.5" placeholder="0" required></div>
+        </div>
+        <div class="row">
+          <div><label><span class="i18n" data-en="Unit" data-th="หน่วย">Unit</span></label><select id="i-unit"><option>sets</option><option>pieces</option><option>board ft</option><option>packs</option></select></div>
+          <div><label><span class="i18n" data-en="Cost (Per Unit)" data-th="ต้นทุน (ต่อหน่วย)">Cost (Per Unit)</span></label><input type="number" id="i-cost" min="0" step="1" placeholder="e.g. 1500"></div>
+          <div><label><span class="i18n" data-en="Low-stock alert" data-th="แจ้งเตือนสต๊อกต่ำ">Low-stock alert</span></label><input type="number" id="i-threshold" min="0" step="0.5" value="2"></div>
+          <div style="flex:2"><label><span class="i18n" data-en="Notes" data-th="หมายเหตุ">Notes</span></label><input type="text" id="i-notes" placeholder="grade, storage location..."></div>
+        </div>
+        <button type="submit" class="btn i18n" data-en="Add to Inventory" data-th="เพิ่มลงคลัง">Add to Inventory</button>
+      </form>
+      <div class="filters" id="invCategoryFilters" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;"></div>
+      <input type="text" id="inventorySearch" class="search-bar" placeholder="Search inventory..." onkeyup="renderInventory()">
+      <div id="inventoryList"></div>
+    </section>
+
+    <!-- SUPPLIERS TAB -->
+    <section id="suppliers">
+      <form id="supplierForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Supplier Name" data-th="ชื่อซัพพลายเออร์">Supplier Name</span></label><input type="text" id="sup-name" required></div>
+          <div><label><span class="i18n" data-en="Website / Link" data-th="เว็บไซต์">Website / Link</span></label><input type="url" id="sup-website" placeholder="https://..."></div>
+          <div><label><span class="i18n" data-en="Contact (Email)" data-th="อีเมลติดต่อ">Contact (Email)</span></label><input type="email" id="sup-contact" placeholder="sales@supplier.com"></div>
+        </div>
+        <div class="row">
+          <div style="flex:1"><label><span class="i18n" data-en="Notes (What do they supply?)" data-th="หมายเหตุ (ขายอะไร?)">Notes (What do they supply?)</span></label><input type="text" id="sup-notes"></div>
+        </div>
+        <button type="submit" class="btn i18n" data-en="Add Supplier" data-th="เพิ่มซัพพลายเออร์">Add Supplier</button>
+      </form>
+      <input type="text" id="supplierSearch" class="search-bar" placeholder="Search suppliers..." onkeyup="renderSuppliers()">
+      <div id="supplierList"></div>
+    </section>
+
+    <!-- BUILDS IN PROCESS TAB -->
+    <section id="builds" class="active">
+      <form id="buildForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Guitar Name / ID" data-th="ชื่อกีตาร์ / รหัส">Guitar Name / ID</span></label><input type="text" id="b-name" placeholder="e.g. GJ-04" required></div>
+          <div><label><span class="i18n" data-en="Type" data-th="ประเภท">Type</span></label><select id="b-type"><option>Gypsy Jazz</option><option>Classical</option><option>Other</option></select></div>
+          <div><label><span class="i18n" data-en="Stage" data-th="ขั้นตอน">Stage</span></label>
+            <select id="b-stage">
+              <option value="design">Design &amp; specs</option>
+              <option value="selection">Wood selection</option>
+              <option value="resaw">Resawing &amp; thicknessing</option>
+              <option value="top_joining">Top joining</option>
+              <option value="rosette">Rosette / soundhole inlay</option>
+              <option value="top_bracing">Top bracing</option>
+              <option value="back_joining">Back joining</option>
+              <option value="back_bracing">Back bracing</option>
+              <option value="bending">Bending sides</option>
+              <option value="kerfing">Kerfing / linings</option>
+              <option value="body_assembly">Body assembly</option>
+              <option value="binding">Binding &amp; purfling</option>
+              <option value="neck_carving">Neck carving</option>
+              <option value="neck_fit">Neck-to-body fit</option>
+              <option value="fretboard">Fretboard prep &amp; slotting</option>
+              <option value="fretting">Fret installation</option>
+              <option value="headstock">Headstock veneer &amp; shaping</option>
+              <option value="finish_sanding">Finish sanding</option>
+              <option value="finishing">Finishing (lacquer / French polish)</option>
+              <option value="buffing">Buffing &amp; polishing</option>
+              <option value="final_assembly">Final assembly (bridge, tuners, nut &amp; saddle)</option>
+              <option value="setup_intonation">Setup &amp; intonation</option>
+              <option value="qc">Quality check</option>
+              <option value="setup">Done / ready</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" style="align-items:center;">
+          <label style="display:flex; align-items:center; text-transform:none; font-size:0.9rem; color:var(--cream); cursor:pointer;">
+            <input type="checkbox" id="b-skip-deduct" style="width:auto; margin-right:8px;">
+            <span class="i18n" data-en="Already in progress — don't deduct materials from inventory" data-th="กำลังสร้างอยู่แล้ว — ไม่ต้องหักวัสดุจากคลัง">Already in progress — don't deduct materials from inventory</span>
+          </label>
+        </div>
+
+        <div class="row" id="gjOptionsRow" style="display:none;">
+          <div>
+            <label><span class="i18n" data-en="Soundhole Shape" data-th="รูปทรงรูเสียง">Soundhole Shape</span></label>
+            <select id="b-soundhole">
+              <option value="grande_bouche">Grande Bouche (D-hole)</option>
+              <option value="petite_bouche">Petite Bouche (Oval hole)</option>
+              <option value="f_hole">F-Hole (Archtop-style)</option>
+              <option value="other">Other / Custom</option>
+            </select>
+          </div>
+          <div>
+            <label><span class="i18n" data-en="Body Shape / Style" data-th="ทรงตัวกีตาร์">Body Shape / Style</span></label>
+            <select id="b-shape">
+              <option value="selmer_jazz">Selmer Modèle Jazz</option>
+              <option value="selmer_503">Selmer 503 style</option>
+              <option value="favino">Favino style</option>
+              <option value="busato">Busato style</option>
+              <option value="dimauro">DiMauro style</option>
+              <option value="other">Other / Custom</option>
+            </select>
+          </div>
+          <div>
+            <label><span class="i18n" data-en="Top Construction" data-th="โครงสร้างหน้าไม้">Top Construction</span></label>
+            <select id="b-pliage">
+              <option value="pliage">Heat-bent Pliage (traditional)</option>
+              <option value="forced">Forced / Pressed Top (no pliage)</option>
+              <option value="flat">Flat Top</option>
+            </select>
+          </div>
+          <div>
+            <label><span class="i18n" data-en="Bracing Pattern" data-th="รูปแบบค้ำยัน">Bracing Pattern</span></label>
+            <select id="b-gj-bracing">
+              <option value="brace_4">4-Brace (Selmer style)</option>
+              <option value="brace_5">5-Brace (Modern standard)</option>
+              <option value="brace_3">3-Brace (Vintage F-hole style)</option>
+              <option value="fhole_archtop">F-Hole Archtop-style Bracing</option>
+              <option value="ladder">Ladder Bracing (General)</option>
+              <option value="other">Other / Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" id="classicalOptionsRow" style="display:none;">
+          <div>
+            <label><span class="i18n" data-en="Bracing Pattern" data-th="รูปแบบค้ำยัน">Bracing Pattern</span></label>
+            <select id="b-classical-bracing">
+              <option value="fan_torres">Traditional Fan Bracing (Torres-style)</option>
+              <option value="lattice">Lattice Bracing</option>
+              <option value="double_top">Double Top (Lattice-Sandwich)</option>
+              <option value="hybrid_fan_lattice">Hybrid Fan/Lattice</option>
+              <option value="other">Other / Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="background: var(--bg); padding: 10px; border-radius: 7px; margin-bottom: 12px; border: 1px solid var(--border);">
+          <label style="color: var(--wood); margin-bottom: 10px;"><span class="i18n" data-en="Specs &amp; Measurements" data-th="สเปคและขนาด">Specs &amp; Measurements</span></label>
+          <div class="row">
+            <div>
+              <label style="text-transform:none;font-size:0.72rem;"><span class="i18n" data-en="Nut Width (mm)" data-th="ความกว้างนัท (มม.)">Nut Width (mm)</span></label>
+              <input type="number" id="b-nut-width" step="0.1" placeholder="e.g. 46">
+            </div>
+            <div>
+              <label style="text-transform:none;font-size:0.72rem;"><span class="i18n" data-en="Scale Length (mm)" data-th="ความยาวสเกล (มม.)">Scale Length (mm)</span></label>
+              <input type="number" id="b-scale-length" step="0.1" placeholder="e.g. 670">
+            </div>
+            <div>
+              <label style="text-transform:none;font-size:0.72rem;"><span class="i18n" data-en="Neck Profile" data-th="โปรไฟล์คอ">Neck Profile</span></label>
+              <select id="b-neck-profile">
+                <option value="">--</option>
+                <option value="c_shape">C-Shape</option>
+                <option value="soft_v">Soft V</option>
+                <option value="full_v">Full V</option>
+                <option value="d_shape">D-Shape</option>
+                <option value="u_shape">U-Shape</option>
+                <option value="other">Other/Custom</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label style="text-transform:none;font-size:0.72rem;"><span class="i18n" data-en="Action @ 12th, Bass (mm)" data-th="แอ็คชั่นสาย 12, เบส (มม.)">Action @ 12th, Bass (mm)</span></label>
+              <input type="number" id="b-action-bass" step="0.1" placeholder="e.g. 2.5">
+            </div>
+            <div>
+              <label style="text-transform:none;font-size:0.72rem;"><span class="i18n" data-en="Action @ 12th, Treble (mm)" data-th="แอ็คชั่นสาย 12, แหลม (มม.)">Action @ 12th, Treble (mm)</span></label>
+              <input type="number" id="b-action-treble" step="0.1" placeholder="e.g. 2.0">
+            </div>
+            <div>
+              <label style="text-transform:none;font-size:0.72rem;"><span class="i18n" data-en="Saddle Height (mm)" data-th="ความสูงหย่อง (มม.)">Saddle Height (mm)</span></label>
+              <input type="number" id="b-saddle-height" step="0.1" placeholder="e.g. 8">
+            </div>
+          </div>
+        </div>
+
+        <div style="background: var(--bg); padding: 10px; border-radius: 7px; margin-bottom: 12px; border: 1px solid var(--border);">
+          <label style="color: var(--wood); margin-bottom: 10px;"><span class="i18n" data-en="Assign Materials (Auto-Deducts from Inventory)" data-th="เลือกวัสดุ (หักจากคลังอัตโนมัติ)">Assign Materials (Auto-Deducts from Inventory)</span></label>
+          <div class="row">
+            <div><label>Top Wood</label><select id="b-top-wood" class="inv-dropdown"></select></div>
+            <div><label>Back & Sides</label><select id="b-back-wood" class="inv-dropdown"></select></div>
+            <div><label>Neck Blanks</label><select id="b-neck-wood" class="inv-dropdown"></select></div>
+          </div>
+          <div class="row">
+            <div><label>Fingerboard</label><select id="b-fb-wood" class="inv-dropdown"></select></div>
+            <div><label>Tuners</label><select id="b-tuners" class="inv-dropdown"></select></div>
+            <div><label>Frets</label><select id="b-frets" class="inv-dropdown"></select></div>
+          </div>
+          <div class="row">
+            <div><label>Nut & Saddle</label><select id="b-bone" class="inv-dropdown"></select></div>
+            <div><label>Bridge / Tailpiece</label><select id="b-tailpiece" class="inv-dropdown"></select></div>
+            <div><label>Strings</label><select id="b-strings" class="inv-dropdown"></select></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div><label><span class="i18n" data-en="Started" data-th="วันที่เริ่ม">Started</span></label><input type="date" id="b-started" required></div>
+          <div style="flex:2"><label><span class="i18n" data-en="Assign Customer" data-th="เลือกลูกค้า">Assign Customer</span></label><select id="b-customer" class="cust-dropdown"><option value="Standard / Speculative Build">Standard / Speculative Build</option></select></div>
+        </div>
+        <div class="row">
+          <div style="flex:2"><label><span class="i18n" data-en="Cloud Media Link (Drive/Photos/iCloud)" data-th="ลิงก์สื่อ (Drive/Photos/iCloud)">Cloud Media Link (Drive/Photos/iCloud)</span></label><input type="url" id="b-media" placeholder="https://..."></div>
+        </div>
+        <div class="row"><div style="flex:1"><label><span class="i18n" data-en="Notes" data-th="หมายเหตุ">Notes</span></label><textarea id="b-notes" placeholder="specs, bracing, issues to remember..."></textarea></div></div>
+        <button type="submit" class="btn i18n" data-en="Add build & Deduct Materials" data-th="เพิ่มกีตาร์และหักวัสดุ">Add build & Deduct Materials</button>
+      </form>
+      <input type="text" id="buildSearch" class="search-bar" placeholder="Search active builds..." onkeyup="renderBuilds()">
+      <div id="buildList"></div>
+    </section>
+
+    <!-- REPAIRS TAB -->
+    <section id="repairs">
+      <form id="repairForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Customer" data-th="ลูกค้า">Customer</span></label><select id="r-customer" class="cust-dropdown-repair"><option value="Walk-in / Unlisted">Walk-in / Unlisted</option></select></div>
+          <div><label><span class="i18n" data-en="Instrument Make/Model" data-th="เครื่องดนตรี (รุ่น/ยี่ห้อ)">Instrument Make/Model</span></label><input type="text" id="r-instrument" placeholder="e.g. Martin D-28" required></div>
+          <div>
+            <label><span class="i18n" data-en="Status" data-th="สถานะ">Status</span></label>
+            <select id="r-status"><option value="intake">Intake / Waiting</option><option value="progress">In Progress</option><option value="ready">Ready for Pickup</option><option value="done">Picked Up & Paid</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label><span class="i18n" data-en="Intake Date" data-th="วันที่รับ">Intake Date</span></label><input type="date" id="r-date" required></div>
+          <div><label><span class="i18n" data-en="Bench Fee / Quote (THB)" data-th="ค่าประเมิน / ค่าแรง (THB)">Bench Fee / Quote (THB)</span></label><input type="text" id="r-fee" placeholder="e.g. 2500"></div>
+          <div><label><span class="i18n" data-en="Cloud Media Link" data-th="ลิงก์สื่อ">Cloud Media Link</span></label><input type="url" id="r-media" placeholder="https://..."></div>
+        </div>
+        <div class="row"><div style="flex:1"><label><span class="i18n" data-en="Repair Tasks" data-th="งานซ่อม">Repair Tasks</span></label><textarea id="r-tasks" placeholder="Neck reset, fret dress, new bone saddle..."></textarea></div></div>
+        <button type="submit" class="btn i18n" data-en="Log Repair Ticket" data-th="บันทึกงานซ่อม">Log Repair Ticket</button>
+      </form>
+      <input type="text" id="repairSearch" class="search-bar" placeholder="Search repairs..." onkeyup="renderRepairs()">
+      <div id="repairList"></div>
+    </section>
+
+    <!-- FINISHED STOCK TAB -->
+    <section id="stock">
+      <form id="stockForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Name / ID" data-th="ชื่อ / รหัส">Name / ID</span></label><input type="text" id="s-name" required></div>
+          <div><label><span class="i18n" data-en="Type" data-th="ประเภท">Type</span></label><select id="s-type"><option>Gypsy Jazz</option><option>Classical</option><option>Other</option></select></div>
+          <div><label><span class="i18n" data-en="Status" data-th="สถานะ">Status</span></label><select id="s-status"><option value="available">Available</option><option value="reserved">Reserved</option><option value="sold">Sold</option></select></div>
+        </div>
+        <div class="row">
+          <div><label><span class="i18n" data-en="Final Sale Price (THB)" data-th="ราคาขายสุทธิ (THB)">Final Sale Price (THB)</span></label><input type="text" id="s-price"></div>
+          <div><label><span class="i18n" data-en="Total Material Cost" data-th="ต้นทุนวัสดุ">Total Material Cost</span></label><input type="number" id="s-cost"></div>
+          <div><label><span class="i18n" data-en="Completed date" data-th="วันที่เสร็จสิ้น">Completed date</span></label><input type="date" id="s-completed"></div>
+        </div>
+        <div class="row"><div style="flex:1"><label><span class="i18n" data-en="Notes" data-th="หมายเหตุ">Notes</span></label><textarea id="s-notes"></textarea></div></div>
+        <button type="submit" class="btn i18n" data-en="Add to stock" data-th="เพิ่มลงสต๊อก">Add to stock</button>
+      </form>
+      <input type="text" id="stockSearch" class="search-bar" placeholder="Search finished stock..." onkeyup="renderStock()">
+      <div id="stockList"></div>
+    </section>
+
+    <!-- ORDERS TAB -->
+    <section id="orders">
+      <form id="orderForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Customer" data-th="ลูกค้า">Customer</span></label><select id="o-customer" class="cust-dropdown" required></select></div>
+          <div><label><span class="i18n" data-en="Type" data-th="ประเภท">Type</span></label><select id="o-type"><option>Gypsy Jazz</option><option>Classical</option><option>Other</option></select></div>
+          <div><label><span class="i18n" data-en="Status" data-th="สถานะ">Status</span></label><select id="o-status"><option value="inquiry">Inquiry</option><option value="progress">In progress</option><option value="done">Done / delivered</option></select></div>
+        </div>
+        <div class="row">
+          <div><label><span class="i18n" data-en="Total Price (THB)" data-th="ราคารวม (THB)">Total Price (THB)</span></label><input type="text" id="o-price" placeholder="e.g. 45000"></div>
+          <div><label><span class="i18n" data-en="Deposit Received (THB)" data-th="เงินมัดจำ (THB)">Deposit Received (THB)</span></label><input type="text" id="o-deposit" placeholder="e.g. 15000"></div>
+          <div><label><span class="i18n" data-en="Target date" data-th="วันกำหนดส่ง">Target date</span></label><input type="date" id="o-date"></div>
+        </div>
+        <div class="row"><div style="flex:1"><label><span class="i18n" data-en="Notes" data-th="หมายเหตุ">Notes</span></label><textarea id="o-notes"></textarea></div></div>
+        <button type="submit" class="btn i18n" data-en="Add order" data-th="เพิ่มคำสั่งซื้อ">Add order</button>
+      </form>
+      <input type="text" id="orderSearch" class="search-bar" placeholder="Search orders..." onkeyup="renderOrders()">
+      <div id="orderList"></div>
+    </section>
+
+    <!-- CUSTOMER LEDGER TAB -->
+    <section id="customers">
+      <form id="customerForm">
+        <div class="row">
+          <div><label><span class="i18n" data-en="Name" data-th="ชื่อ">Name</span></label><input type="text" id="c-name" required></div>
+          <div><label><span class="i18n" data-en="Phone" data-th="เบอร์โทร">Phone</span></label><input type="text" id="c-phone" placeholder="e.g. 081-xxx-xxxx"></div>
+          <div><label><span class="i18n" data-en="Email" data-th="อีเมล">Email</span></label><input type="email" id="c-email"></div>
+        </div>
+        <div class="row">
+          <div><label><span class="i18n" data-en="Social / Line ID" data-th="โซเชียล / Line ID">Social / Line ID</span></label><input type="text" id="c-social"></div>
+          <div><label><span class="i18n" data-en="Cloud Media Link" data-th="ลิงก์สื่อ">Cloud Media Link</span></label><input type="url" id="c-media" placeholder="Google Drive folder..."></div>
+        </div>
+        <div class="row"><div style="flex:1"><label><span class="i18n" data-en="Notes / Preferences" data-th="หมายเหตุ / ความต้องการ">Notes / Preferences</span></label><input type="text" id="c-notes"></div></div>
+        <button type="submit" class="btn i18n" data-en="Add Customer" data-th="เพิ่มลูกค้า">Add Customer</button>
+      </form>
+      <input type="text" id="customerSearch" class="search-bar" placeholder="Search customers..." onkeyup="renderCustomers()">
+      <div id="customerList"></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+let currentLang = 'en';
+let currentDate = new Date();
+
+function toggleLanguage() {
+  currentLang = currentLang === 'en' ? 'th' : 'en';
+  document.querySelectorAll('.i18n').forEach(el => { el.innerText = el.getAttribute(`data-${currentLang}`); });
+  renderFinancials(); renderToday(); renderOrders(); renderRepairs(); renderInventory();
+}
+
+const STAGE_LABELS = {
+  design: 'Design & specs', selection: 'Wood selection', resaw: 'Resawing & thicknessing',
+  top_joining: 'Top joining', rosette: 'Rosette / soundhole inlay', top_bracing: 'Top bracing',
+  back_joining: 'Back joining', back_bracing: 'Back bracing', bending: 'Bending sides',
+  kerfing: 'Kerfing / linings', body_assembly: 'Body assembly', binding: 'Binding & purfling',
+  neck_carving: 'Neck carving', neck_fit: 'Neck-to-body fit', fretboard: 'Fretboard prep & slotting',
+  fretting: 'Fret installation', headstock: 'Headstock veneer & shaping', finish_sanding: 'Finish sanding',
+  finishing: 'Finishing (lacquer / French polish)', buffing: 'Buffing & polishing',
+  final_assembly: 'Final assembly (bridge, tuners, nut & saddle)', setup_intonation: 'Setup & intonation',
+  qc: 'Quality check', setup: 'Done / ready'
+};
+const STAGE_ORDER = Object.keys(STAGE_LABELS);
+const STOCK_LABELS = { available: 'Available', reserved: 'Reserved', sold: 'Sold' };
+const STATUS_LABELS = { inquiry: 'Inquiry', progress: 'In progress', done: 'Done' };
+const REPAIR_STATUS = { intake: 'Intake / Waiting', progress: 'In Progress', ready: 'Ready for Pickup', done: 'Picked Up & Paid' };
+
+const MILESTONES = [
+  {id: 'topBraced', en: 'Top Braced', th: 'วางโครงไม้หน้า'}, {id: 'backBraced', en: 'Back Braced', th: 'วางโครงไม้หลัง'},
+  {id: 'boxClosed', en: 'Box Closed', th: 'ปิดตัวเครื่อง'}, {id: 'bindings', en: 'Bindings Scraped', th: 'ขูดขอบไบดิ้ง'},
+  {id: 'neckCarved', en: 'Neck Carved', th: 'เหลาคอ'}, {id: 'fretted', en: 'Fretted & Leveled', th: 'อัดและปรับระนาบเฟรต'},
+  {id: 'polished', en: 'Polished', th: 'ขัดเงา'}
+];
+
+let inventory = []; let builds = []; let finishedStock = []; let customers = []; let orders = []; let suppliers = []; let repairs = [];
+let businessInfo = { name: '', contact: '', note: '' };
+let hourlyRate = 0;
+
+function editBusinessInfo(){
+  const name = prompt(currentLang==='en' ? 'Your name / workshop name (appears on printed invoices & spec sheets):' : 'ชื่อคุณ / ชื่อร้าน (จะแสดงบนใบแจ้งหนี้และสเปคที่พิมพ์):', businessInfo.name || '');
+  if(name === null) return;
+  const contact = prompt(currentLang==='en' ? 'Contact info (phone, email, or Line ID):' : 'ข้อมูลติดต่อ (เบอร์โทร, อีเมล, หรือ Line ID):', businessInfo.contact || '');
+  if(contact === null) return;
+  const rateInput = prompt(currentLang==='en' ? 'Your hourly rate (THB) — used to estimate labor cost in the Financial Dashboard:' : 'ค่าแรงต่อชั่วโมง (บาท) — ใช้คำนวณต้นทุนแรงงานในแดชบอร์ดการเงิน:', hourlyRate || '0');
+  if(rateInput === null) return;
+  businessInfo = { name, contact, note: businessInfo.note || '' };
+  hourlyRate = Number(rateInput) || 0;
+  try{ localStorage.setItem('business-info', JSON.stringify(businessInfo)); localStorage.setItem('hourly-rate', String(hourlyRate)); }catch(e){}
+  renderFinancials();
+}
+
+function loadAll(){
+  try{ const bi = localStorage.getItem('business-info'); businessInfo = bi ? JSON.parse(bi) : { name:'', contact:'', note:'' }; }catch(e){}
+  try{ const hr = localStorage.getItem('hourly-rate'); hourlyRate = hr ? Number(hr) : 0; }catch(e){ hourlyRate = 0; }
+  try{ const inv = localStorage.getItem('inventory-stock'); inventory = inv ? JSON.parse(inv) : []; }catch(e){ inventory = []; }
+  try{ const b = localStorage.getItem('builds-in-process'); builds = b ? JSON.parse(b) : []; }catch(e){ builds = []; }
+  try{ const s = localStorage.getItem('finished-stock'); finishedStock = s ? JSON.parse(s) : []; }catch(e){ finishedStock = []; }
+  try{ const c = localStorage.getItem('customers'); customers = c ? JSON.parse(c) : []; }catch(e){ customers = []; }
+  try{ const o = localStorage.getItem('orders'); orders = o ? JSON.parse(o) : []; }catch(e){ orders = []; }
+  try{ const sup = localStorage.getItem('suppliers'); suppliers = sup ? JSON.parse(sup) : []; }catch(e){ suppliers = []; }
+  try{ const rep = localStorage.getItem('repairs'); repairs = rep ? JSON.parse(rep) : []; }catch(e){ repairs = []; }
+
+  updateSupplierDropdown(); updateInventoryDropdowns(); updateCustomerDropdowns();
+  renderFinancials(); renderCalendar(); renderInventory(); renderBuilds(); renderStock(); renderCustomers(); renderOrders(); renderSuppliers(); renderRepairs(); renderSummary();
+}
+
+function saveInventory(){ try{ localStorage.setItem('inventory-stock', JSON.stringify(inventory)); }catch(e){ console.error('save failed',e); } }
+function saveBuilds(){ try{ localStorage.setItem('builds-in-process', JSON.stringify(builds)); }catch(e){ console.error('save failed',e); } }
+function saveStock(){ try{ localStorage.setItem('finished-stock', JSON.stringify(finishedStock)); }catch(e){ console.error('save failed',e); } }
+function saveCustomers(){ try{ localStorage.setItem('customers', JSON.stringify(customers)); }catch(e){ console.error('save failed',e); } }
+function saveOrders(){ try{ localStorage.setItem('orders', JSON.stringify(orders)); }catch(e){ console.error('save failed',e); } }
+function saveSuppliers(){ try{ localStorage.setItem('suppliers', JSON.stringify(suppliers)); }catch(e){ console.error('save failed',e); } }
+function saveRepairs(){ try{ localStorage.setItem('repairs', JSON.stringify(repairs)); }catch(e){ console.error('save failed',e); } }
+
+function updateSupplierDropdown() {
+  const dropdown = document.getElementById('i-supplier'); let options = '<option value="">-- None --</option>';
+  suppliers.forEach((s) => { options += `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`; }); dropdown.innerHTML = options;
+}
+
+function updateInventoryDropdowns() {
+  const dropdowns = document.querySelectorAll('.inv-dropdown'); let options = '<option value="">-- None --</option>';
+  inventory.forEach((item, i) => { options += `<option value="${i}">[${item.category.toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`; });
+  dropdowns.forEach(dd => dd.innerHTML = options);
+}
+
+function updateCustomerDropdowns() {
+  let options = ''; let optionsRepair = `<option value="Walk-in / Unlisted">Walk-in / Unlisted</option>`;
+  customers.forEach((c) => { options += `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`; });
+  document.getElementById('o-customer').innerHTML = options || `<option value="">Add customer first</option>`;
+  document.getElementById('r-customer').innerHTML = optionsRepair + options;
+  document.getElementById('b-customer').innerHTML = `<option value="Standard / Speculative Build">Standard / Speculative Build</option>` + options;
+}
+
+function calculateDays(startDate) {
+  if (!startDate) return 0;
+  const start = new Date(startDate); const now = new Date();
+  const diffTime = Math.abs(now - start);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function parseCurrency(str) { if(!str) return 0; return Number(str.toString().replace(/[^0-9.-]+/g,"")) || 0; }
+function formatCurrency(num) { return num.toLocaleString() + ' THB'; }
+
+function renderSummary(){
+  const activeBuilds = builds.filter(b => b.stage !== 'setup').length;
+  document.getElementById('summaryRow').innerHTML = `
+    <div class="summary-card"><div class="num">${inventory.length}</div><div class="label i18n" data-en="Items in stock" data-th="รายการในคลัง">${currentLang==='en'?'Items in stock':'รายการในคลัง'}</div></div>
+    <div class="summary-card"><div class="num">${activeBuilds}</div><div class="label i18n" data-en="In process" data-th="กำลังสร้าง">${currentLang==='en'?'In process':'กำลังสร้าง'}</div></div>
+    <div class="summary-card"><div class="num">${finishedStock.length}</div><div class="label i18n" data-en="Finished Stock" data-th="กีตาร์ในสต๊อก">${currentLang==='en'?'Finished Stock':'กีตาร์ในสต๊อก'}</div></div>
+    <div class="summary-card"><div class="num">${customers.length}</div><div class="label i18n" data-en="Customers" data-th="ลูกค้า">${currentLang==='en'?'Customers':'ลูกค้า'}</div></div>
+  `;
+  renderToday();
+}
+
+const STALE_DAYS = 14;
+
+function renderToday(){
+  const container = document.getElementById('todayList');
+  if(!container) return;
+  const today = new Date(new Date().toDateString());
+
+  const lowStock = inventory.filter(item => Number(item.qty) <= Number(item.threshold));
+  const overdueOrders = orders.filter(o => !o.archived && o.status !== 'done' && o.date && new Date(o.date) < today);
+  const overdueRepairs = repairs.filter(r => r.status !== 'done' && r.date && (today - new Date(r.date))/(1000*60*60*24) > STALE_DAYS);
+  const stalledBuilds = builds.filter(b => b.stage !== 'setup' && b.stageUpdated && (Date.now() - b.stageUpdated)/(1000*60*60*24) > STALE_DAYS);
+
+  const badgeCount = lowStock.length + overdueOrders.length + overdueRepairs.length + stalledBuilds.length;
+  const navBtn = document.getElementById('todayNavBtn');
+  if(navBtn) navBtn.innerHTML = `${currentLang==='en'?'Today':'วันนี้'}${badgeCount ? ` <span style="background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:0.7rem;margin-left:4px;">${badgeCount}</span>` : ''}`;
+
+  const section = (title, items, renderItem) => {
+    if(!items.length) return '';
+    return `<div class="group-label" style="font-family:'Inter',sans-serif; font-size:0.75rem; color:var(--wood-dim); text-transform:uppercase; letter-spacing:1px; margin:20px 0 8px;">${title} (${items.length})</div>` + items.map(renderItem).join('');
+  };
+
+  let html = '';
+  html += section(currentLang==='en' ? 'Low Stock' : 'สต๊อกต่ำ', lowStock, item => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(item.name)}</div><div class="card-meta"><span class="qty-pill low">${item.qty} ${escapeHtml(item.unit)}</span></div></div></div>`);
+  html += section(currentLang==='en' ? 'Overdue Orders' : 'คำสั่งซื้อเลยกำหนด', overdueOrders, o => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(o.customer)} — ${escapeHtml(o.type)}</div><div class="card-meta"><span>${currentLang==='en'?'Target':'กำหนดส่ง'}: ${escapeHtml(o.date)}</span></div></div></div>`);
+  html += section(currentLang==='en' ? 'Repairs Waiting 14+ Days' : 'งานซ่อมค้างเกิน 14 วัน', overdueRepairs, r => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(r.instrument)}</div><div class="card-meta"><span>${currentLang==='en'?'Customer':'ลูกค้า'}: ${escapeHtml(r.customer)}</span><span>${currentLang==='en'?'Intake':'วันที่รับ'}: ${escapeHtml(r.date)}</span></div></div></div>`);
+  html += section(currentLang==='en' ? 'Stalled Builds (no stage change in 14+ days)' : 'งานที่ไม่มีความคืบหน้าเกิน 14 วัน', stalledBuilds, b => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(b.name)} — ${escapeHtml(b.type)}</div><div class="card-meta"><span class="badge stage">${STAGE_LABELS[b.stage]}</span></div></div></div>`);
+
+  if(badgeCount === 0){
+    html = `<div class="empty">${currentLang==='en' ? "Nothing needs attention right now — you're all caught up." : 'ไม่มีอะไรต้องจัดการตอนนี้ ทุกอย่างเรียบร้อยดี'}</div>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderFinancials() {
+  const dashboard = document.getElementById('financeDashboard');
+  let revenue = 0; let totalCost = 0; let pending = 0; let wipValue = 0; let laborCost = 0;
+  finishedStock.forEach(s => { if(s.status === 'sold') { revenue += parseCurrency(s.price); totalCost += parseCurrency(s.cost); laborCost += Number(s.hours || 0) * hourlyRate; } });
+  orders.forEach(o => { if(o.status !== 'done' && !o.archived) { const p = parseCurrency(o.price); const d = parseCurrency(o.deposit); pending += Math.max(0, p - d); } });
+  builds.forEach(b => { if(b.stage !== 'setup') { wipValue += Number(b.materialCost || 0); } });
+  const profit = revenue - totalCost - laborCost; const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
+
+  dashboard.innerHTML = `
+    <div class="finance-card"><div class="val">${formatCurrency(revenue)}</div><div class="title">${currentLang === 'en' ? 'Total Revenue (Sold)' : 'รายได้รวม (ขายแล้ว)'}</div></div>
+    <div class="finance-card"><div class="val warn">${formatCurrency(pending)}</div><div class="title">${currentLang === 'en' ? 'Pending Deposits/Payments' : 'รอชำระ (คำสั่งซื้อ)'}</div></div>
+    <div class="finance-card"><div class="val" style="color:var(--wood-dim)">${formatCurrency(laborCost)}</div><div class="title">${currentLang === 'en' ? `Labor Cost (@ ${hourlyRate}/hr)` : `ต้นทุนแรงงาน (@ ${hourlyRate}/ชม.)`}</div></div>
+    <div class="finance-card"><div class="val ${profit < 0 ? 'warn' : ''}">${formatCurrency(profit)}</div><div class="title">${currentLang === 'en' ? 'Est. Total Profit (incl. labor)' : 'กำไรโดยประมาณ (รวมแรงงาน)'}</div></div>
+    <div class="finance-card"><div class="val">${margin}%</div><div class="title">${currentLang === 'en' ? 'Profit Margin' : 'อัตรากำไร'}</div></div>
+    <div class="finance-card"><div class="val" style="color:var(--wood-dim)">${formatCurrency(wipValue)}</div><div class="title">${currentLang === 'en' ? 'Materials Tied Up in Active Builds' : 'มูลค่าวัสดุในงานที่กำลังสร้าง'}</div></div>
+  `;
+}
+
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  document.getElementById('calendarMonthYear').innerText = `${monthNames[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let gridHtml = '<div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div><div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>';
+
+  for(let i=0; i<firstDay; i++) { gridHtml += `<div class="calendar-day" style="background:transparent; border:none;"></div>`; }
+
+  for(let day=1; day<=daysInMonth; day++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    let eventsHtml = '';
+    orders.forEach(o => { if(o.date === dateStr) eventsHtml += `<div class="calendar-event">Order: ${escapeHtml(o.customer)}</div>`; });
+    repairs.forEach(r => { if(r.date === dateStr) eventsHtml += `<div class="calendar-event repair">Repair: ${escapeHtml(r.instrument)}</div>`; });
+    gridHtml += `<div class="calendar-day"><div class="calendar-day-header">${day}</div>${eventsHtml}</div>`;
+  }
+  document.getElementById('calendarGrid').innerHTML = gridHtml;
+}
+
+function changeMonth(delta) {
+  currentDate.setMonth(currentDate.getMonth() + delta);
+  renderCalendar();
+}
+
+let activeInvCategory = 'All';
+const INV_CATEGORIES = ['wood', 'hardware', 'strings', 'bone', 'frets', 'other'];
+const INV_CATEGORY_LABELS = { wood: 'Wood', hardware: 'Hardware', strings: 'Strings', bone: 'Bone', frets: 'Frets', other: 'Other' };
+
+function setInvCategory(cat){ activeInvCategory = cat; renderInventory(); }
+
+function renderInventory(){
+  updateInventoryDropdowns();
+  const filterRow = document.getElementById('invCategoryFilters');
+  const allCats = ['All', ...INV_CATEGORIES];
+  filterRow.innerHTML = allCats.map(c => {
+    const label = c === 'All' ? (currentLang==='en'?'All':'ทั้งหมด') : INV_CATEGORY_LABELS[c];
+    const isActive = activeInvCategory === c;
+    return `<button class="btn ${isActive ? '' : 'secondary'}" style="padding:6px 14px;font-size:0.8rem;" onclick="setInvCategory('${c}')">${label}</button>`;
+  }).join('');
+
+  const query = document.getElementById('inventorySearch').value.toLowerCase();
+  const list = document.getElementById('inventoryList');
+  const filtered = inventory.map((item, i) => ({item, i}))
+    .filter(x => activeInvCategory === 'All' || x.item.category === activeInvCategory)
+    .filter(x => x.item.name.toLowerCase().includes(query) || x.item.category.toLowerCase().includes(query) || (x.item.supplier || '').toLowerCase().includes(query));
+
+  list.innerHTML = filtered.length ? filtered.map(({item, i}) => {
+    const low = Number(item.qty) <= Number(item.threshold);
+    let emailHtml = '';
+    if(low && item.supplier) {
+      const sup = suppliers.find(s => s.name === item.supplier);
+      if(sup && sup.contact && sup.contact.includes('@')) {
+        const mailto = `mailto:${sup.contact}?subject=Restock%20Request:%20${encodeURIComponent(item.name)}&body=Hello,%0A%0AWe%20need%20to%20restock%20${encodeURIComponent(item.name)}.%20Please%20let%20us%20know%20the%20current%20pricing%20and%20availability.%0A%0AThanks.`;
+        emailHtml = `<a href="${mailto}" class="btn secondary" style="padding:4px 8px;font-size:0.7rem; margin-top:5px; text-decoration:none;">Email Supplier</a>`;
+      }
+    }
+    
+    return `
+      <div class="card ${low ? 'low' : ''}">
+        <div class="card-main">
+          <div class="card-title">${escapeHtml(item.name)} <span style="font-size:0.75rem; color:var(--wood-dim);">[${item.category}]</span></div>
+          <div class="card-meta">
+            <span class="qty-pill ${low ? 'low' : ''}">${item.qty} ${escapeHtml(item.unit)}</span>
+            ${item.cost ? `<span>Cost: ${escapeHtml(item.cost)}</span>` : ''}
+            ${item.supplier ? `<span>Supplier: ${escapeHtml(item.supplier)}</span>` : ''}
+            ${low ? '<span style="color:var(--danger)">Low stock</span>' : ''}
+          </div>
+          ${item.notes ? `<div class="card-note">${escapeHtml(item.notes)}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <div style="display:flex; gap:4px; margin-bottom:4px;">
+            <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="adjustInv(${i}, 1)">+1</button>
+            <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="adjustInv(${i}, -1)">-1</button>
+          </div>
+          ${emailHtml}
+          <button class="btn danger-text" onclick="deleteInv(${i})" style="margin-top:auto;">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join('') : `<div class="empty">${currentLang==='en'?'No inventory found.':'ไม่พบข้อมูลในคลัง'}</div>`;
+}
+
+function renderSuppliers(){
+  const query = document.getElementById('supplierSearch').value.toLowerCase();
+  const list = document.getElementById('supplierList');
+  const filtered = suppliers.map((s,i)=>({s,i})).filter(x => x.s.name.toLowerCase().includes(query) || (x.s.notes||'').toLowerCase().includes(query));
+  list.innerHTML = filtered.length ? filtered.map(({s,i}) => `
+    <div class="card"><div class="card-main"><div class="card-title">${escapeHtml(s.name)}</div><div class="card-meta">${s.contact ? `<span>${escapeHtml(s.contact)}</span>` : ''} ${s.website ? `<span><a href="${s.website}" target="_blank" style="color:var(--wood);">Visit Website</a></span>` : ''}</div>${s.notes ? `<div class="card-note">${escapeHtml(s.notes)}</div>` : ''}</div><div class="card-actions"><button class="btn danger-text" onclick="deleteSupplier(${i})">Remove</button></div></div>
+  `).join('') : '<div class="empty">No suppliers found.</div>';
+}
+
+function renderBuilds(){
+  const query = document.getElementById('buildSearch').value.toLowerCase();
+  const list = document.getElementById('buildList');
+  const filtered = builds.map((b, i) => ({b, i})).filter(item => item.b.name.toLowerCase().includes(query) || (item.b.customer || '').toLowerCase().includes(query));
+
+  list.innerHTML = filtered.length ? filtered.map(({b, i}) => {
+    const stageIdx = STAGE_ORDER.indexOf(b.stage); const track = STAGE_ORDER.map((s, idx) => `<div class="${idx <= stageIdx ? 'filled' : ''}"></div>`).join('');
+    const daysElapsed = calculateDays(b.started); const isCust = b.customer && b.customer !== "Standard / Speculative Build";
+    const parts = ['topWood', 'backWood', 'neckWood', 'fbWood', 'tuners', 'frets', 'bone', 'tailpiece', 'strings'].filter(k => b[k]).map(k => `<strong>${k.replace('Wood','')}:</strong> ${escapeHtml(b[k])}`);
+    if(b.bracing){
+      const bracingLabel = GJ_BRACING_LABELS[b.bracing] || CLASSICAL_BRACING_LABELS[b.bracing] || escapeHtml(b.bracing);
+      parts.unshift(`<strong>Bracing:</strong> ${bracingLabel}`);
+    }
+    if(b.pliage) parts.unshift(`<strong>Top:</strong> ${PLIAGE_LABELS[b.pliage] || escapeHtml(b.pliage)}`);
+    if(b.shape) parts.unshift(`<strong>Shape:</strong> ${SHAPE_LABELS[b.shape] || escapeHtml(b.shape)}`);
+    if(b.soundhole) parts.unshift(`<strong>Soundhole:</strong> ${SOUNDHOLE_LABELS[b.soundhole] || escapeHtml(b.soundhole)}`);
+    const specParts = [];
+    if(b.scaleLength) specParts.push(`<strong>Scale:</strong> ${escapeHtml(b.scaleLength)}mm`);
+    if(b.nutWidth) specParts.push(`<strong>Nut:</strong> ${escapeHtml(b.nutWidth)}mm`);
+    if(b.neckProfile) specParts.push(`<strong>Neck:</strong> ${NECK_PROFILE_LABELS[b.neckProfile] || escapeHtml(b.neckProfile)}`);
+    if(b.actionBass || b.actionTreble) specParts.push(`<strong>Action:</strong> ${escapeHtml(b.actionBass||'?')}/${escapeHtml(b.actionTreble||'?')}mm`);
+    if(b.saddleHeight) specParts.push(`<strong>Saddle:</strong> ${escapeHtml(b.saddleHeight)}mm`);
+    
+    const checksHTML = MILESTONES.map(m => {
+      const isChecked = b.checklist && b.checklist[m.id];
+      return `<label class="${isChecked ? 'done' : ''}"><input type="checkbox" onchange="toggleMilestone(${i}, '${m.id}')" ${isChecked ? 'checked' : ''}> ${currentLang === 'en' ? m.en : m.th}</label>`;
+    }).join('');
+
+    return `
+      <div class="card">
+        <div class="card-main">
+          <div class="card-title">${escapeHtml(b.name)} — ${escapeHtml(b.type)} ${b.media ? `<a href="${b.media}" target="_blank" class="btn secondary" style="padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; text-decoration:none;">Media</a>` : ''}</div>
+          <div class="card-meta"><span class="badge stage">${STAGE_LABELS[b.stage]}</span><span>${b.customer ? `for <strong>${escapeHtml(b.customer)}</strong>` : 'speculative build'}</span>${isCust ? `<span style="color:var(--warn); font-weight:600;">Wait: ${daysElapsed} days</span>` : `<span>Started: ${b.started}</span>`}</div>
+          ${parts.length > 0 ? `<div class="card-specs"><div>${parts.join('</div><div>')}</div></div>` : ''}
+          ${specParts.length > 0 ? `<div class="card-specs">${specParts.join(' &nbsp;·&nbsp; ')}</div>` : ''}
+          <div class="checklist"><div class="checklist-title">${currentLang === 'en' ? 'Milestones' : 'ความคืบหน้า'}</div><div class="checklist-items">${checksHTML}</div></div>
+          <div class="stage-track">${track}</div>
+          ${b.notes ? `<div class="card-note">${escapeHtml(b.notes)}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateBuildStage(${i}, this.value)">${Object.entries(STAGE_LABELS).map(([k,v]) => `<option value="${k}" ${b.stage===k?'selected':''}>${v}</option>`).join('')}</select>
+          <div style="font-family: Inter; font-size: 0.8rem; margin-top:5px; color:var(--wood);"><strong>${b.hours || 0} Hours</strong></div>
+          <div style="display:flex; gap:4px;"><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem" onclick="adjustHours(${i}, 1)">+ 1 Hr</button><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem" onclick="adjustHours(${i}, -1)">- 1 Hr</button></div>
+          <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="moveToStock(${i})">${currentLang==='en'?'Move to Finished Stock':'ย้ายไปสต๊อกสำเร็จ'}</button>
+          <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="duplicateBuild(${i})">${currentLang==='en'?'Duplicate':'ทำซ้ำ'}</button>
+          <button class="btn danger-text" style="margin-top:auto;" onclick="deleteBuild(${i})">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join('') : `<div class="empty">${currentLang==='en'?'No active builds.':'ไม่มีกีตาร์ที่กำลังสร้าง'}</div>`;
+}
+
+async function toggleMilestone(buildIdx, milestoneId) { if (!builds[buildIdx].checklist) builds[buildIdx].checklist = {}; builds[buildIdx].checklist[milestoneId] = !builds[buildIdx].checklist[milestoneId]; await saveBuilds(); renderBuilds(); }
+
+function renderRepairs(){
+  const query = document.getElementById('repairSearch').value.toLowerCase();
+  const list = document.getElementById('repairList');
+  const today = new Date(new Date().toDateString());
+  const filtered = repairs.map((r,i)=>({r,i})).filter(x => x.r.instrument.toLowerCase().includes(query) || x.r.customer.toLowerCase().includes(query));
+  list.innerHTML = filtered.length ? filtered.map(({r,i}) => {
+    const daysWaiting = r.date ? Math.floor((today - new Date(r.date))/(1000*60*60*24)) : 0;
+    const isOverdue = r.status !== 'done' && daysWaiting > STALE_DAYS;
+    return `
+    <div class="card ${isOverdue ? 'low' : ''}"><div class="card-main"><div class="card-title">${escapeHtml(r.instrument)} ${r.media ? `<a href="${r.media}" target="_blank" class="btn secondary" style="padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; text-decoration:none;">Media</a>` : ''}</div><div class="card-meta"><span class="badge ${r.status === 'done' ? 'done' : 'waiting'}">${REPAIR_STATUS[r.status]}</span><span>Customer: <strong>${escapeHtml(r.customer)}</strong></span><span>Intake: ${r.date}</span>${r.fee ? `<span>Fee: ${escapeHtml(r.fee)} THB</span>` : ''}${isOverdue ? `<span style="color:var(--danger); font-weight:600;">${currentLang==='en'?`Waiting ${daysWaiting} days`:`รอมา ${daysWaiting} วัน`}</span>` : ''}</div>${r.tasks ? `<div class="card-note" style="color:var(--cream);">${escapeHtml(r.tasks)}</div>` : ''}</div><div class="card-actions"><select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateRepairStatus(${i}, this.value)">${Object.entries(REPAIR_STATUS).map(([k,v]) => `<option value="${k}" ${r.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn danger-text" onclick="deleteRepair(${i})" style="margin-top:auto;">Remove</button></div></div>
+  `;
+  }).join('') : '<div class="empty">No repairs found.</div>';
+}
+
+let showArchivedOrders = false;
+let showArchivedCustomers = false;
+
+function renderOrders(){
+  const query = document.getElementById('orderSearch').value.toLowerCase();
+  const active = orders.map((o,i)=>({o,i})).filter(x => !x.o.archived);
+  const archived = orders.map((o,i)=>({o,i})).filter(x => x.o.archived);
+  const filtered = active.filter(x => x.o.customer.toLowerCase().includes(query) || x.o.type.toLowerCase().includes(query));
+
+  const cardHtml = (o, i, isArchived) => {
+    const p = parseCurrency(o.price); const d = parseCurrency(o.deposit); const bal = p - d;
+    const today = new Date(new Date().toDateString());
+    const isOverdue = o.date && o.status !== 'done' && !isArchived && new Date(o.date) < today;
+    const linkedBuild = builds.find(b => b.linkedOrderId === o.id);
+    const buildBadge = linkedBuild ? `<span class="badge stage">${currentLang==='en'?'Build':'งานสร้าง'}: ${STAGE_LABELS[linkedBuild.stage]}</span>` : '';
+    const startBuildBtn = (!isArchived && !linkedBuild) ? `<button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="startBuildFromOrder(${i})">${currentLang==='en'?'Start Build':'เริ่มสร้าง'}</button>` : '';
+    const actionBtn = isArchived
+      ? `<button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="unarchiveOrder(${i})">${currentLang==='en'?'Restore':'กู้คืน'}</button>`
+      : `<button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="printCard('order', ${i})">Print Invoice</button>${startBuildBtn}<button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="archiveOrder(${i})">${currentLang==='en'?'Archive':'เก็บเข้าคลัง'}</button>`;
+    return `<div class="card ${isOverdue ? 'low' : ''}"><div class="card-main"><div class="card-title">${escapeHtml(o.customer)} — ${escapeHtml(o.type)}</div><div class="card-meta"><span class="badge ${o.status}">${STATUS_LABELS[o.status]}</span>${buildBadge}${o.price ? `<span>Price: ${formatCurrency(p)}</span>` : ''}${o.deposit ? `<span>Deposit: ${formatCurrency(d)}</span>` : ''}${bal > 0 ? `<span style="color:var(--warn); font-weight:600;">Bal: ${formatCurrency(bal)}</span>` : ''}${o.date ? `<span>Target: ${escapeHtml(o.date)}</span>` : ''}${isOverdue ? `<span style="color:var(--danger); font-weight:600;">${currentLang==='en'?'Overdue':'เลยกำหนด'}</span>` : ''}</div>${o.notes ? `<div class="card-note">${escapeHtml(o.notes)}</div>` : ''}</div><div class="card-actions"><select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateOrderStatus(${i}, this.value)">${Object.entries(STATUS_LABELS).map(([k,v]) => `<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select>${actionBtn}<button class="btn danger-text" onclick="deleteOrder(${i})" style="margin-top:auto;">Delete permanently</button></div></div>`;
+  };
+
+  let html = filtered.length ? filtered.map(({o,i}) => cardHtml(o,i,false)).join('') : '<div class="empty">No orders.</div>';
+  html += `<button class="btn secondary" style="margin-top:10px;" onclick="showArchivedOrders=!showArchivedOrders; renderOrders();">${showArchivedOrders ? (currentLang==='en'?'Hide archived':'ซ่อนที่เก็บถาวร') : (currentLang==='en'?`Show archived (${archived.length})`:`แสดงที่เก็บถาวร (${archived.length})`)}</button>`;
+  if(showArchivedOrders && archived.length){
+    html += `<div class="group-label" style="margin-top:14px; font-family:Inter,sans-serif; font-size:0.75rem; color:var(--wood-dim); text-transform:uppercase; letter-spacing:1px;">${currentLang==='en'?'Archived':'เก็บถาวรแล้ว'}</div>`;
+    html += archived.map(({o,i}) => cardHtml(o,i,true)).join('');
+  }
+  document.getElementById('orderList').innerHTML = html;
+}
+
+const SOUNDHOLE_LABELS = { grande_bouche: 'Grande Bouche (D-hole)', petite_bouche: 'Petite Bouche (Oval)', f_hole: 'F-Hole (Archtop-style)', other: 'Other/Custom' };
+const SHAPE_LABELS = { selmer_jazz: 'Selmer Modèle Jazz', selmer_503: 'Selmer 503 style', favino: 'Favino style', busato: 'Busato style', dimauro: 'DiMauro style', other: 'Other/Custom' };
+const PLIAGE_LABELS = { pliage: 'Heat-bent Pliage', forced: 'Forced/Pressed Top', flat: 'Flat Top' };
+const GJ_BRACING_LABELS = { brace_4: '4-Brace (Selmer style)', brace_5: '5-Brace (Modern standard)', brace_3: '3-Brace (Vintage F-hole style)', fhole_archtop: 'F-Hole Archtop-style Bracing', ladder: 'Ladder Bracing', other: 'Other/Custom' };
+const CLASSICAL_BRACING_LABELS = { fan_torres: 'Traditional Fan Bracing (Torres-style)', lattice: 'Lattice Bracing', double_top: 'Double Top (Lattice-Sandwich)', hybrid_fan_lattice: 'Hybrid Fan/Lattice', other: 'Other/Custom' };
+const NECK_PROFILE_LABELS = { c_shape: 'C-Shape', soft_v: 'Soft V', full_v: 'Full V', d_shape: 'D-Shape', u_shape: 'U-Shape', other: 'Other/Custom' };
+
+async function editJournal(i){
+  const s = finishedStock[i];
+  const brightness = prompt(currentLang==='en' ? 'Brightness (Dark / Balanced / Bright):' : 'ความสว่างของเสียง (ทึบ / สมดุล / สว่าง):', s.brightness || '');
+  if(brightness === null) return;
+  const projection = prompt(currentLang==='en' ? 'Projection (Low / Medium / High):' : 'การกระจายเสียง (ต่ำ / ปานกลาง / สูง):', s.projection || '');
+  if(projection === null) return;
+  const sustain = prompt(currentLang==='en' ? 'Sustain (Short / Medium / Long):' : 'ความยาวเสียงก้อง (สั้น / ปานกลาง / ยาว):', s.sustain || '');
+  if(sustain === null) return;
+  const rating = prompt(currentLang==='en' ? 'Overall rating (1-5):' : 'คะแนนโดยรวม (1-5):', s.rating || '');
+  if(rating === null) return;
+  const journalNotes = prompt(currentLang==='en' ? 'Journal notes (tone impressions, how it played in, anything worth remembering):' : 'บันทึกเพิ่มเติม (ความรู้สึกต่อโทนเสียง เป็นต้น):', s.journalNotes || '');
+  if(journalNotes === null) return;
+  s.brightness = brightness; s.projection = projection; s.sustain = sustain; s.rating = rating; s.journalNotes = journalNotes;
+  await saveStock(); renderStock();
+}
+
+function renderStock(){
+  const query = document.getElementById('stockSearch').value.toLowerCase();
+  const filtered = finishedStock.map((s,i)=>({s,i})).filter(x => x.s.name.toLowerCase().includes(query) || x.s.type.toLowerCase().includes(query));
+  document.getElementById('stockList').innerHTML = filtered.length ? filtered.map(({s,i}) => {
+    const bracingLabel = s.bracing ? (GJ_BRACING_LABELS[s.bracing] || CLASSICAL_BRACING_LABELS[s.bracing] || s.bracing) : '';
+    const hasJournal = s.brightness || s.projection || s.sustain || s.rating || s.journalNotes;
+    const journalHtml = hasJournal ? `<div class="card-note" style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">
+        <strong style="color:var(--wood);">${currentLang==='en'?"Maker's Journal":'บันทึกของช่าง'}${s.rating ? ` — ${'★'.repeat(Number(s.rating))}${'☆'.repeat(5-Number(s.rating))}` : ''}</strong><br>
+        ${[s.brightness && `Brightness: ${escapeHtml(s.brightness)}`, s.projection && `Projection: ${escapeHtml(s.projection)}`, s.sustain && `Sustain: ${escapeHtml(s.sustain)}`].filter(Boolean).join(' &nbsp;·&nbsp; ')}
+        ${s.journalNotes ? `<div style="margin-top:4px;">${escapeHtml(s.journalNotes)}</div>` : ''}
+      </div>` : '';
+    return `<div class="card"><div class="card-main"><div class="card-title">${escapeHtml(s.name)} — ${escapeHtml(s.type)}</div><div class="card-meta"><span class="badge ${s.status}">${STOCK_LABELS[s.status]}</span> ${s.soundhole ? `<span>${SOUNDHOLE_LABELS[s.soundhole] || escapeHtml(s.soundhole)}</span>` : ''}${s.shape ? `<span>${SHAPE_LABELS[s.shape] || escapeHtml(s.shape)}</span>` : ''}${s.pliage ? `<span>${PLIAGE_LABELS[s.pliage] || escapeHtml(s.pliage)}</span>` : ''}${bracingLabel ? `<span>${escapeHtml(bracingLabel)}</span>` : ''}${s.price ? `<span>${escapeHtml(s.price)} THB</span>` : ''}${s.cost ? `<span>Cost: ${escapeHtml(s.cost)}</span>` : ''}</div>${journalHtml}</div><div class="card-actions"><select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateStockStatus(${i}, this.value)">${Object.entries(STOCK_LABELS).map(([k,v]) => `<option value="${k}" ${s.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="printCard('stock', ${i})">Print Spec</button><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="editJournal(${i})">${hasJournal ? (currentLang==='en'?'Edit Journal':'แก้ไขบันทึก') : (currentLang==='en'?'Add Journal':'เพิ่มบันทึก')}</button><button class="btn danger-text" onclick="deleteStock(${i})" style="margin-top:auto;">Remove</button></div></div>`;
+  }).join('') : '<div class="empty">No finished stock.</div>';
+}
+
+function renderCustomers(){
+  const query = document.getElementById('customerSearch').value.toLowerCase(); const list = document.getElementById('customerList');
+  const active = customers.map((c, i) => ({c, i})).filter(item => !item.c.archived);
+  const archived = customers.map((c, i) => ({c, i})).filter(item => item.c.archived);
+  const filtered = active.filter(item => item.c.name.toLowerCase().includes(query));
+
+  const cardHtml = (c, i, isArchived) => {
+    const actionBtn = isArchived
+      ? `<button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="unarchiveCustomer(${i})">${currentLang==='en'?'Restore':'กู้คืน'}</button>`
+      : `<button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="archiveCustomer(${i})">${currentLang==='en'?'Archive':'เก็บเข้าคลัง'}</button>`;
+    return `<div class="card"><div class="card-main"><div class="card-title" style="color:var(--wood);">${escapeHtml(c.name)} ${c.media ? `<a href="${c.media}" target="_blank" class="btn secondary" style="padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; text-decoration:none;">Media Link</a>` : ''}</div><div class="card-meta" style="flex-direction:column; align-items:flex-start; gap:4px; margin-top:8px;">${c.phone ? `<div><strong>Phone:</strong> ${escapeHtml(c.phone)}</div>` : ''}${c.email ? `<div><strong>Email:</strong> ${escapeHtml(c.email)}</div>` : ''}${c.social ? `<div><strong>Social:</strong> ${escapeHtml(c.social)}</div>` : ''}</div>${c.notes ? `<div class="card-note" style="margin-top:10px; border-top:1px solid var(--border); padding-top:6px;">${escapeHtml(c.notes)}</div>` : ''}</div><div class="card-actions">${actionBtn}<button class="btn danger-text" onclick="deleteCustomer(${i})">Delete permanently</button></div></div>`;
+  };
+
+  let html = filtered.length ? filtered.map(({c,i}) => cardHtml(c,i,false)).join('') : `<div class="empty">No customers found.</div>`;
+  html += `<button class="btn secondary" style="margin-top:10px;" onclick="showArchivedCustomers=!showArchivedCustomers; renderCustomers();">${showArchivedCustomers ? (currentLang==='en'?'Hide archived':'ซ่อนที่เก็บถาวร') : (currentLang==='en'?`Show archived (${archived.length})`:`แสดงที่เก็บถาวร (${archived.length})`)}</button>`;
+  if(showArchivedCustomers && archived.length){
+    html += `<div class="group-label" style="margin-top:14px; font-family:Inter,sans-serif; font-size:0.75rem; color:var(--wood-dim); text-transform:uppercase; letter-spacing:1px;">${currentLang==='en'?'Archived':'เก็บถาวรแล้ว'}</div>`;
+    html += archived.map(({c,i}) => cardHtml(c,i,true)).join('');
+  }
+  list.innerHTML = html;
+}
+
+function printCard(type, idx) {
+  const pa = document.getElementById('printArea');
+  const letterhead = (businessInfo.name || businessInfo.contact)
+    ? `<div style="border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:15px;">
+         ${businessInfo.name ? `<div style="font-size:1.3rem; font-weight:600;">${escapeHtml(businessInfo.name)}</div>` : ''}
+         ${businessInfo.contact ? `<div style="font-size:0.9rem;">${escapeHtml(businessInfo.contact)}</div>` : ''}
+       </div>`
+    : '';
+  let h = '';
+  if(type === 'stock') {
+    const s = finishedStock[idx];
+    const bracingLabel = s.bracing ? (GJ_BRACING_LABELS[s.bracing] || CLASSICAL_BRACING_LABELS[s.bracing] || s.bracing) : '';
+    h = `${letterhead}<h2>Instrument Specification Sheet</h2>
+         <p><strong>Model / ID:</strong> ${escapeHtml(s.name)} - ${escapeHtml(s.type)}</p>
+         ${s.shape ? `<p><strong>Body Shape:</strong> ${SHAPE_LABELS[s.shape] || escapeHtml(s.shape)}</p>` : ''}
+         ${s.soundhole ? `<p><strong>Soundhole:</strong> ${SOUNDHOLE_LABELS[s.soundhole] || escapeHtml(s.soundhole)}</p>` : ''}
+         ${s.pliage ? `<p><strong>Top Construction:</strong> ${PLIAGE_LABELS[s.pliage] || escapeHtml(s.pliage)}</p>` : ''}
+         ${bracingLabel ? `<p><strong>Bracing:</strong> ${escapeHtml(bracingLabel)}</p>` : ''}
+         ${s.scaleLength ? `<p><strong>Scale Length:</strong> ${escapeHtml(s.scaleLength)}mm</p>` : ''}
+         ${s.nutWidth ? `<p><strong>Nut Width:</strong> ${escapeHtml(s.nutWidth)}mm</p>` : ''}
+         ${s.neckProfile ? `<p><strong>Neck Profile:</strong> ${NECK_PROFILE_LABELS[s.neckProfile] || escapeHtml(s.neckProfile)}</p>` : ''}
+         ${(s.actionBass || s.actionTreble) ? `<p><strong>Action @ 12th (Bass/Treble):</strong> ${escapeHtml(s.actionBass||'?')}mm / ${escapeHtml(s.actionTreble||'?')}mm</p>` : ''}
+         ${s.saddleHeight ? `<p><strong>Saddle Height:</strong> ${escapeHtml(s.saddleHeight)}mm</p>` : ''}
+         <p><strong>Completion Date:</strong> ${escapeHtml(s.completed)}</p>
+         <p><strong>Price:</strong> ${escapeHtml(s.price)} THB</p><br>
+         <p><strong>Specifications & Notes:</strong></p>
+         <p>${escapeHtml(s.notes)}</p>`;
+  } else if (type === 'order') {
+    const o = orders[idx];
+    const bal = parseCurrency(o.price) - parseCurrency(o.deposit);
+    h = `${letterhead}<h2>Invoice / Order Summary</h2>
+         <p><strong>Customer:</strong> ${escapeHtml(o.customer)}</p>
+         <p><strong>Instrument Type:</strong> ${escapeHtml(o.type)}</p>
+         <p><strong>Target Delivery:</strong> ${escapeHtml(o.date)}</p><br>
+         <p><strong>Total Price:</strong> ${formatCurrency(parseCurrency(o.price))}</p>
+         <p><strong>Deposit Paid:</strong> ${formatCurrency(parseCurrency(o.deposit))}</p>
+         <p><strong>Balance Due:</strong> ${formatCurrency(bal)}</p><br>
+         <p><strong>Details & Notes:</strong></p>
+         <p>${escapeHtml(o.notes)}</p>`;
+  }
+  pa.innerHTML = h;
+  window.print();
+}
+
+function exportCSV() {
+  downloadCSV(inventory, 'inventory_data');
+  downloadCSV(finishedStock, 'finished_stock_data');
+  downloadCSV(orders, 'orders_data');
+}
+
+function downloadCSV(dataArray, filename) {
+  if(!dataArray || !dataArray.length) return;
+  const headers = Object.keys(dataArray[0]);
+  const csvRows = [headers.join(',')];
+  for(const row of dataArray) {
+    const values = headers.map(header => {
+      let val = row[header] === null || row[header] === undefined ? '' : String(row[header]);
+      return `"${val.replace(/"/g, '""')}"`;
+    });
+    csvRows.push(values.join(','));
+  }
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+function backupAll(){
+  const data = { inventory, builds, finishedStock, customers, orders, suppliers, repairs, backupDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `workshop_ledger_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function restoreFromFile(file){
+  const warnMsg = currentLang === 'en'
+    ? 'This will REPLACE everything currently in the ledger with the contents of this backup file. This cannot be undone. Continue?'
+    : 'การดำเนินการนี้จะแทนที่ข้อมูลทั้งหมดในบัญชีด้วยข้อมูลจากไฟล์สำรองนี้ และไม่สามารถย้อนกลับได้ ดำเนินการต่อหรือไม่?';
+  if(!confirm(warnMsg)) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const data = JSON.parse(e.target.result);
+      inventory = Array.isArray(data.inventory) ? data.inventory : [];
+      builds = Array.isArray(data.builds) ? data.builds : [];
+      finishedStock = Array.isArray(data.finishedStock) ? data.finishedStock : [];
+      customers = Array.isArray(data.customers) ? data.customers : [];
+      orders = Array.isArray(data.orders) ? data.orders : [];
+      suppliers = Array.isArray(data.suppliers) ? data.suppliers : [];
+      repairs = Array.isArray(data.repairs) ? data.repairs : [];
+      saveInventory(); saveBuilds(); saveStock(); saveCustomers(); saveOrders(); saveSuppliers(); saveRepairs();
+      updateSupplierDropdown(); updateInventoryDropdowns(); updateCustomerDropdowns();
+      renderFinancials(); renderCalendar(); renderInventory(); renderBuilds(); renderStock(); renderCustomers(); renderOrders(); renderSuppliers(); renderRepairs(); renderSummary();
+      alert(currentLang === 'en' ? 'Backup restored successfully.' : 'กู้คืนข้อมูลสำเร็จ');
+    }catch(err){
+      alert(currentLang === 'en' ? 'Could not read this file — make sure it is a backup .json file created by this tool.' : 'ไม่สามารถอ่านไฟล์นี้ได้ กรุณาตรวจสอบว่าเป็นไฟล์ .json ที่สำรองจากเครื่องมือนี้');
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('exportBtn').addEventListener('click', backupAll);
+document.getElementById('importFile').addEventListener('change', (e) => {
+  if(e.target.files && e.target.files[0]){
+    restoreFromFile(e.target.files[0]);
+    e.target.value = '';
+  }
+});
+
+document.getElementById('inventoryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const newName = document.getElementById('i-name').value;
+  const newQty = Number(document.getElementById('i-qty').value);
+  const existing = inventory.find(item => item.name.trim().toLowerCase() === newName.trim().toLowerCase());
+  if(existing){
+    const mergeMsg = currentLang === 'en'
+      ? `"${existing.name}" already exists with ${existing.qty} ${existing.unit}. Add ${newQty} more to make ${Number(existing.qty)+newQty} total? (Cancel to add as a separate entry instead.)`
+      : `"${existing.name}" มีอยู่แล้วจำนวน ${existing.qty} ${existing.unit} ต้องการเพิ่มอีก ${newQty} รวมเป็น ${Number(existing.qty)+newQty} หรือไม่? (ยกเลิกเพื่อเพิ่มเป็นรายการแยก)`;
+    if(confirm(mergeMsg)){
+      existing.qty = Number(existing.qty) + newQty;
+      if(document.getElementById('i-cost').value) existing.cost = document.getElementById('i-cost').value;
+      if(document.getElementById('i-notes').value) existing.notes = document.getElementById('i-notes').value;
+      await saveInventory(); e.target.reset(); document.getElementById('i-threshold').value = 2; renderInventory(); renderSummary();
+      return;
+    }
+  }
+  inventory.push({ name: newName, category: document.getElementById('i-category').value, supplier: document.getElementById('i-supplier').value, qty: newQty, unit: document.getElementById('i-unit').value, cost: document.getElementById('i-cost').value, threshold: document.getElementById('i-threshold').value || 2, notes: document.getElementById('i-notes').value }); await saveInventory(); e.target.reset(); document.getElementById('i-threshold').value = 2; renderInventory(); renderSummary();
+});
+
+document.getElementById('supplierForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); suppliers.push({ name: document.getElementById('sup-name').value, website: document.getElementById('sup-website').value, contact: document.getElementById('sup-contact').value, notes: document.getElementById('sup-notes').value }); await saveSuppliers(); e.target.reset(); updateSupplierDropdown(); renderSuppliers();
+});
+
+document.getElementById('repairForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); repairs.push({ customer: document.getElementById('r-customer').value, instrument: document.getElementById('r-instrument').value, status: document.getElementById('r-status').value, date: document.getElementById('r-date').value, fee: document.getElementById('r-fee').value, media: document.getElementById('r-media').value, tasks: document.getElementById('r-tasks').value }); await saveRepairs(); e.target.reset(); renderRepairs(); renderCalendar();
+});
+
+document.getElementById('customerForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); customers.push({ name: document.getElementById('c-name').value, phone: document.getElementById('c-phone').value, email: document.getElementById('c-email').value, social: document.getElementById('c-social').value, media: document.getElementById('c-media').value, notes: document.getElementById('c-notes').value }); await saveCustomers(); e.target.reset(); updateCustomerDropdowns(); renderCustomers(); renderSummary();
+});
+
+function toggleGJOptions(){
+  const type = document.getElementById('b-type').value;
+  document.getElementById('gjOptionsRow').style.display = type === 'Gypsy Jazz' ? 'flex' : 'none';
+  document.getElementById('classicalOptionsRow').style.display = type === 'Classical' ? 'flex' : 'none';
+}
+document.getElementById('b-type').addEventListener('change', toggleGJOptions);
+toggleGJOptions();
+
+document.getElementById('buildForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const dropdownIds = ['b-top-wood', 'b-back-wood', 'b-neck-wood', 'b-fb-wood', 'b-tuners', 'b-frets', 'b-bone', 'b-tailpiece', 'b-strings']; const keys = ['topWood', 'backWood', 'neckWood', 'fbWood', 'tuners', 'frets', 'bone', 'tailpiece', 'strings'];
+  const pendingLinkId = document.getElementById('b-name').dataset.linkedOrderId || null;
+  const isGJ = document.getElementById('b-type').value === 'Gypsy Jazz';
+  const isClassical = document.getElementById('b-type').value === 'Classical';
+  const soundholeVal = isGJ ? document.getElementById('b-soundhole').value : '';
+  const shapeVal = isGJ ? document.getElementById('b-shape').value : '';
+  const pliageVal = isGJ ? document.getElementById('b-pliage').value : '';
+  const bracingVal = isGJ ? document.getElementById('b-gj-bracing').value : (isClassical ? document.getElementById('b-classical-bracing').value : '');
+  const skipDeduct = document.getElementById('b-skip-deduct').checked;
+  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, hours: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null };
+  let deductOccurred = false;
+  dropdownIds.forEach((ddId, index) => {
+    const val = document.getElementById(ddId).value;
+    if (val !== "") {
+      const idx = parseInt(val); buildData[keys[index]] = inventory[idx].name;
+      if(!skipDeduct){ inventory[idx].qty = Math.max(0, inventory[idx].qty - 1); buildData.materialCost += Number(inventory[idx].cost || 0); deductOccurred = true; }
+    }
+  });
+  builds.push(buildData); await saveBuilds(); if (deductOccurred) { await saveInventory(); renderInventory(); }
+  delete document.getElementById('b-name').dataset.linkedOrderId;
+  e.target.reset(); toggleGJOptions(); renderBuilds(); renderOrders(); renderSummary();
+});
+
+function duplicateBuild(i){
+  const b = builds[i];
+  document.getElementById('b-type').value = b.type;
+  toggleGJOptions();
+  if(b.soundhole) document.getElementById('b-soundhole').value = b.soundhole;
+  if(b.shape) document.getElementById('b-shape').value = b.shape;
+  if(b.pliage) document.getElementById('b-pliage').value = b.pliage;
+  if(b.bracing){
+    if(b.type === 'Gypsy Jazz') document.getElementById('b-gj-bracing').value = b.bracing;
+    else if(b.type === 'Classical') document.getElementById('b-classical-bracing').value = b.bracing;
+  }
+  document.getElementById('b-nut-width').value = b.nutWidth || '';
+  document.getElementById('b-scale-length').value = b.scaleLength || '';
+  document.getElementById('b-neck-profile').value = b.neckProfile || '';
+  document.getElementById('b-action-bass').value = b.actionBass || '';
+  document.getElementById('b-action-treble').value = b.actionTreble || '';
+  document.getElementById('b-saddle-height').value = b.saddleHeight || '';
+  const materialKeys = ['topWood','backWood','neckWood','fbWood','tuners','frets','bone','tailpiece','strings'];
+  const dropdownIds = ['b-top-wood','b-back-wood','b-neck-wood','b-fb-wood','b-tuners','b-frets','b-bone','b-tailpiece','b-strings'];
+  materialKeys.forEach((key, idx) => {
+    const name = b[key];
+    const dd = document.getElementById(dropdownIds[idx]);
+    if(name){
+      const matchIdx = inventory.findIndex(item => item.name === name);
+      dd.value = matchIdx > -1 ? String(matchIdx) : '';
+    } else {
+      dd.value = '';
+    }
+  });
+  document.getElementById('b-notes').value = b.notes || '';
+  document.querySelectorAll('.nav-container button').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-tab="builds"]').classList.add('active');
+  document.getElementById('builds').classList.add('active');
+  document.getElementById('b-name').value = '';
+  document.getElementById('b-name').focus();
+  document.getElementById('b-name').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function startBuildFromOrder(i){
+  const o = orders[i];
+  document.querySelectorAll('.nav-container button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-tab="builds"]').classList.add('active');
+  document.getElementById('builds').classList.add('active');
+  document.getElementById('b-type').value = o.type;
+  toggleGJOptions();
+  const custSelect = document.getElementById('b-customer');
+  for(const opt of custSelect.options){ if(opt.value === o.customer) opt.selected = true; }
+  document.getElementById('b-name').dataset.linkedOrderId = o.id;
+  document.getElementById('b-name').focus();
+  document.getElementById('b-name').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+document.getElementById('stockForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); finishedStock.push({ name: document.getElementById('s-name').value, type: document.getElementById('s-type').value, status: document.getElementById('s-status').value, price: document.getElementById('s-price').value, cost: document.getElementById('s-cost').value, completed: document.getElementById('s-completed').value, notes: document.getElementById('s-notes').value }); await saveStock(); e.target.reset(); renderStock(); renderFinancials(); renderSummary();
+});
+
+document.getElementById('orderForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); orders.push({ id: Date.now(), customer: document.getElementById('o-customer').value, type: document.getElementById('o-type').value, status: document.getElementById('o-status').value, price: document.getElementById('o-price').value, deposit: document.getElementById('o-deposit').value, date: document.getElementById('o-date').value, notes: document.getElementById('o-notes').value }); await saveOrders(); e.target.reset(); renderOrders(); renderFinancials(); renderCalendar(); renderSummary();
+});
+
+async function adjustHours(i, delta) { builds[i].hours = Math.max(0, (builds[i].hours || 0) + delta); await saveBuilds(); renderBuilds(); }
+async function updateBuildStage(i, stage){ builds[i].stage = stage; builds[i].stageUpdated = Date.now(); await saveBuilds(); renderBuilds(); renderToday(); }
+async function updateStockStatus(i, status){ finishedStock[i].status = status; await saveStock(); renderStock(); renderFinancials(); }
+async function updateOrderStatus(i, status){ orders[i].status = status; await saveOrders(); renderOrders(); renderFinancials(); }
+async function updateRepairStatus(i, status){ repairs[i].status = status; await saveRepairs(); renderRepairs(); }
+
+async function adjustInv(i, delta){ inventory[i].qty = Math.max(0, Number(inventory[i].qty) + delta); await saveInventory(); renderInventory(); renderSummary(); }
+function confirmDelete(label){
+  const msg = currentLang === 'en' ? `Remove "${label}"? This cannot be undone.` : `ลบ "${label}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้`;
+  return confirm(msg);
+}
+
+async function deleteInv(i){ if(!confirmDelete(inventory[i].name)) return; inventory.splice(i,1); await saveInventory(); renderInventory(); renderSummary(); }
+async function moveToStock(i){
+  const b = builds[i];
+  const isCust = b.customer && b.customer !== "Standard / Speculative Build";
+  finishedStock.push({
+    name: b.name,
+    type: b.type,
+    soundhole: b.soundhole || '',
+    shape: b.shape || '',
+    pliage: b.pliage || '',
+    bracing: b.bracing || '',
+    nutWidth: b.nutWidth || '',
+    scaleLength: b.scaleLength || '',
+    neckProfile: b.neckProfile || '',
+    actionBass: b.actionBass || '',
+    actionTreble: b.actionTreble || '',
+    saddleHeight: b.saddleHeight || '',
+    status: isCust ? 'reserved' : 'available',
+    price: '',
+    cost: b.materialCost || 0,
+    hours: b.hours || 0,
+    completed: new Date().toISOString().slice(0,10),
+    notes: b.notes || ''
+  });
+  builds.splice(i,1);
+  await saveStock(); await saveBuilds();
+  renderStock(); renderBuilds(); renderFinancials(); renderSummary();
+}
+
+async function deleteBuild(i){
+  const b = builds[i];
+  if(!confirmDelete(b.name)) return;
+  const materialKeys = ['topWood','backWood','neckWood','fbWood','tuners','frets','bone','tailpiece','strings'];
+  materialKeys.forEach(key => {
+    const usedName = b[key];
+    if(!usedName) return;
+    const match = inventory.find(item => item.name === usedName);
+    if(match) match.qty = Number(match.qty) + 1;
+  });
+  builds.splice(i,1);
+  await saveInventory(); await saveBuilds();
+  renderInventory(); renderBuilds(); renderSummary();
+}
+async function deleteStock(i){ if(!confirmDelete(finishedStock[i].name)) return; finishedStock.splice(i,1); await saveStock(); renderStock(); renderFinancials(); renderSummary(); }
+async function archiveCustomer(i){
+  const label = currentLang === 'en' ? `Archive "${customers[i].name}"? You can restore them later from Show Archived.` : `เก็บ "${customers[i].name}" เข้าคลังหรือไม่? คุณสามารถกู้คืนได้ภายหลัง`;
+  if(!confirm(label)) return;
+  customers[i].archived = true;
+  await saveCustomers(); updateCustomerDropdowns(); renderCustomers(); renderSummary();
+}
+async function unarchiveCustomer(i){ customers[i].archived = false; await saveCustomers(); updateCustomerDropdowns(); renderCustomers(); renderSummary(); }
+async function deleteCustomer(i){ if(!confirmDelete(customers[i].name)) return; customers.splice(i,1); await saveCustomers(); updateCustomerDropdowns(); renderCustomers(); renderSummary(); }
+
+async function archiveOrder(i){
+  const label = currentLang === 'en' ? `Archive this order for "${orders[i].customer}"? You can restore it later from Show Archived.` : `เก็บคำสั่งซื้อของ "${orders[i].customer}" เข้าคลังหรือไม่?`;
+  if(!confirm(label)) return;
+  orders[i].archived = true;
+  await saveOrders(); renderOrders(); renderFinancials(); renderCalendar(); renderSummary();
+}
+async function unarchiveOrder(i){ orders[i].archived = false; await saveOrders(); renderOrders(); renderFinancials(); renderCalendar(); renderSummary(); }
+async function deleteOrder(i){ if(!confirmDelete('order for ' + orders[i].customer)) return; orders.splice(i,1); await saveOrders(); renderOrders(); renderFinancials(); renderCalendar(); renderSummary(); }
+
+async function deleteSupplier(i){ if(!confirmDelete(suppliers[i].name)) return; suppliers.splice(i,1); await saveSuppliers(); updateSupplierDropdown(); renderSuppliers(); }
+async function deleteRepair(i){ if(!confirmDelete(repairs[i].instrument)) return; repairs.splice(i,1); await saveRepairs(); renderRepairs(); renderCalendar(); }
+
+document.querySelectorAll('.nav-container button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-container button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active'); document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+loadAll();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
