@@ -788,8 +788,28 @@ function updateSupplierDropdown() {
 function updateInventoryDropdowns() {
   const dropdowns = document.querySelectorAll('.inv-dropdown'); let options = '<option value="">-- None --</option>';
   inventory.forEach((item, i) => { options += `<option value="${i}">[${item.category.toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`; });
+  options += '<option value="__new__">+ Add new item...</option>';
   dropdowns.forEach(dd => dd.innerHTML = options);
 }
+
+const DROPDOWN_CATEGORY = {
+  'b-top-wood': 'wood', 'b-back-wood': 'wood', 'b-neck-wood': 'wood', 'b-fb-wood': 'wood',
+  'b-tuners': 'hardware', 'b-frets': 'frets', 'b-bone': 'bone', 'b-tailpiece': 'hardware', 'b-strings': 'strings'
+};
+
+document.addEventListener('change', async (e) => {
+  if (!e.target.classList.contains('inv-dropdown') || e.target.value !== '__new__') return;
+  const dd = e.target;
+  const name = prompt(currentLang==='en' ? 'Name of this new item (you can fill in cost/quantity later from the Inventory tab):' : 'ชื่อรายการใหม่ (สามารถกรอกราคา/จำนวนภายหลังได้ที่แท็บคลังสินค้า):', '');
+  if (!name) { dd.value = ''; return; }
+  const category = DROPDOWN_CATEGORY[dd.id] || 'other';
+  inventory.push({ name, category, supplier: '', qty: 0, unit: 'pieces', cost: '', threshold: 2, notes: '' });
+  await saveInventory();
+  updateInventoryDropdowns();
+  renderInventory();
+  const newIndex = inventory.length - 1;
+  document.querySelectorAll('.inv-dropdown').forEach(d => { if (d.id === dd.id) d.value = String(newIndex); });
+});
 
 function updateCustomerDropdowns() {
   let options = ''; let optionsRepair = `<option value="Walk-in / Unlisted">Walk-in / Unlisted</option>`;
@@ -948,12 +968,28 @@ function renderInventory(){
             <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="adjustInv(${i}, 1)">+1</button>
             <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="adjustInv(${i}, -1)">-1</button>
           </div>
+          <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="editInvItem(${i})">${currentLang==='en'?'Edit':'แก้ไข'}</button>
           ${emailHtml}
           <button class="btn danger-text" onclick="deleteInv(${i})" style="margin-top:auto;">Remove</button>
         </div>
       </div>
     `;
   }).join('') : `<div class="empty">${currentLang==='en'?'No inventory found.':'ไม่พบข้อมูลในคลัง'}</div>`;
+}
+
+async function editInvItem(i){
+  const item = inventory[i];
+  const name = prompt(currentLang==='en' ? 'Item name:' : 'ชื่อรายการ:', item.name);
+  if (name === null) return;
+  const cost = prompt(currentLang==='en' ? 'Cost per unit (leave blank if unknown):' : 'ต้นทุนต่อหน่วย (เว้นว่างได้หากยังไม่ทราบ):', item.cost || '');
+  if (cost === null) return;
+  const qty = prompt(currentLang==='en' ? 'Quantity on hand:' : 'จำนวนคงเหลือ:', item.qty);
+  if (qty === null) return;
+  const notes = prompt(currentLang==='en' ? 'Notes:' : 'หมายเหตุ:', item.notes || '');
+  if (notes === null) return;
+  item.name = name; item.cost = cost; item.qty = Number(qty) || 0; item.notes = notes;
+  await saveInventory();
+  renderInventory(); renderSummary();
 }
 
 function renderSuppliers(){
@@ -1460,4 +1496,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
