@@ -132,6 +132,19 @@
 
   .card{ background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; transition:border-color 0.15s ease, transform 0.15s ease; }
   .card:hover{border-color:var(--wood-dim); transform:translateY(-1px);} .card.low{border-color:var(--danger);}
+
+  .inv-list-wrap{ overflow-x:auto; border:1px solid var(--border); border-radius:9px; }
+  .inv-table{ width:100%; border-collapse:collapse; font-family:'Inter',sans-serif; font-size:0.85rem; min-width:640px; }
+  .inv-table thead th{ text-align:left; padding:10px 12px; background:var(--panel-raised); color:var(--wood-dim); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid var(--border); position:sticky; top:0; }
+  .inv-table tbody tr{ border-bottom:1px solid var(--border); transition:background 0.15s ease; }
+  .inv-table tbody tr:last-child{ border-bottom:none; }
+  .inv-table tbody tr:hover{ background:var(--panel); }
+  .inv-table tbody tr.low{ background:rgba(193,68,58,0.08); }
+  .inv-table td{ padding:9px 12px; vertical-align:middle; color:var(--cream); }
+  .inv-table td.num{ color:var(--wood); font-weight:600; }
+  .inv-table td.actions{ white-space:nowrap; text-align:right; }
+  .inv-table td.actions button{ margin-left:4px; }
+  .inv-table .low-badge{ color:var(--danger); font-size:0.72rem; font-weight:600; }
   .card-main{flex:1;} .card-title{font-size:1.05rem; color:var(--cream); display:flex; align-items:center; gap:10px;}
   .card-meta{ font-family: 'Inter', -apple-system, sans-serif; font-size:0.8rem; color:var(--cream-dim); margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .card-specs{ font-family: 'Inter', -apple-system, sans-serif; font-size:0.75rem; color:var(--wood-dim); margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; background: var(--bg); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); }
@@ -267,6 +280,17 @@
   </label>
 </div>
 
+<div id="editModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="max-width:480px; width:100%; max-height:85vh; overflow-y:auto; background:#241d17; border:1px solid #3a3025; border-radius:11px; padding:24px;">
+    <div id="editModalTitle" style="font-family:'Fraunces',serif; font-size:1.2rem; color:#e8ddc7; margin-bottom:16px;"></div>
+    <div id="editModalFields"></div>
+    <div style="display:flex; gap:10px; margin-top:18px;">
+      <button id="editModalSave" class="btn" style="flex:1;">Save</button>
+      <button id="editModalCancel" class="btn secondary" style="flex:1;" onclick="closeEditModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="app-wrap" id="appWrap" style="display:none;">
   
   <aside class="app-sidebar">
@@ -287,8 +311,11 @@
 
     <div class="nav-container">
       <div class="nav-group">
+        <button data-tab="overview" class="active i18n" style="font-weight:600;" data-en="Overview" data-th="ภาพรวม">Overview</button>
+      </div>
+      <div class="nav-group">
         <div class="nav-title i18n" data-en="The Shop Floor" data-th="พื้นที่ปฏิบัติงาน">The Shop Floor</div>
-        <button data-tab="builds" class="active i18n" data-en="Active Builds" data-th="กำลังสร้าง">Active Builds</button>
+        <button data-tab="builds" class="i18n" data-en="Active Builds" data-th="กำลังสร้าง">Active Builds</button>
         <button data-tab="repairs" class="i18n" data-en="Repairs" data-th="งานซ่อมแซม">Repairs</button>
         <button data-tab="stock" class="i18n" data-en="Finished Stock" data-th="กีตาร์ในสต๊อก">Finished Stock</button>
       </div>
@@ -366,6 +393,7 @@
         </div>
         <button type="submit" class="btn i18n" data-en="Add to Inventory" data-th="เพิ่มลงคลัง">Add to Inventory</button>
       </form>
+      <div id="invTotalValue" style="margin-bottom:14px;"></div>
       <div id="invBreakdown" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;"></div>
       <div class="filters" id="invCategoryFilters" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;"></div>
       <input type="text" id="inventorySearch" class="search-bar" placeholder="Search inventory..." onkeyup="renderInventory()">
@@ -390,7 +418,12 @@
     </section>
 
     <!-- BUILDS IN PROCESS TAB -->
-    <section id="builds" class="active">
+    <!-- OVERVIEW TAB (homepage) -->
+    <section id="overview" class="active">
+      <div id="overviewContent"></div>
+    </section>
+
+    <section id="builds">
       <form id="buildForm">
         <div class="row">
           <div><label><span class="i18n" data-en="Guitar Name / ID" data-th="ชื่อกีตาร์ / รหัส">Guitar Name / ID</span></label><input type="text" id="b-name" placeholder="e.g. GJ-04" required></div>
@@ -550,12 +583,15 @@
           </div>
           <div class="row">
             <div><label>Fingerboard</label><select id="b-fb-wood" class="inv-dropdown"></select></div>
+            <div><label>Bridge</label><select id="b-bridge" class="inv-dropdown"></select></div>
             <div><label>Tuners</label><select id="b-tuners" class="inv-dropdown"></select></div>
-            <div><label>Frets</label><select id="b-frets" class="inv-dropdown"></select></div>
           </div>
           <div class="row">
+            <div><label>Frets</label><select id="b-frets" class="inv-dropdown"></select></div>
             <div><label>Nut & Saddle</label><select id="b-bone" class="inv-dropdown"></select></div>
-            <div><label>Bridge / Tailpiece</label><select id="b-tailpiece" class="inv-dropdown"></select></div>
+            <div><label>Tailpiece</label><select id="b-tailpiece" class="inv-dropdown"></select></div>
+          </div>
+          <div class="row">
             <div><label>Strings</label><select id="b-strings" class="inv-dropdown"></select></div>
           </div>
         </div>
@@ -775,14 +811,16 @@ async function saveToCloud(){
 let inventory = []; let builds = []; let finishedStock = []; let customers = []; let orders = []; let suppliers = []; let repairs = [];
 let businessInfo = { name: '', contact: '', note: '' };
 function editBusinessInfo(){
-  const name = prompt(currentLang==='en' ? 'Your name / workshop name (appears on printed invoices & spec sheets):' : 'ชื่อคุณ / ชื่อร้าน (จะแสดงบนใบแจ้งหนี้และสเปคที่พิมพ์):', businessInfo.name || '');
-  if(name === null) return;
-  const contact = prompt(currentLang==='en' ? 'Contact info (phone, email, or Line ID):' : 'ข้อมูลติดต่อ (เบอร์โทร, อีเมล, หรือ Line ID):', businessInfo.contact || '');
-  if(contact === null) return;
-  businessInfo = { name, contact, note: businessInfo.note || '' };
-  try{ localStorage.setItem('business-info', JSON.stringify(businessInfo)); }catch(e){}
-  saveToCloud();
-  renderFinancials();
+  const fields = `
+    ${modalField(currentLang==='en'?'Your name / workshop name':'ชื่อคุณ / ชื่อร้าน', `<input type="text" id="modal-biz-name" value="${escapeHtml(businessInfo.name || '')}">`)}
+    ${modalField(currentLang==='en'?'Contact info (phone, email, or Line ID)':'ข้อมูลติดต่อ', `<input type="text" id="modal-biz-contact" value="${escapeHtml(businessInfo.contact || '')}">`)}
+  `;
+  openEditModal(currentLang==='en' ? 'Business Info' : 'ข้อมูลร้าน', fields, () => {
+    businessInfo = { name: document.getElementById('modal-biz-name').value, contact: document.getElementById('modal-biz-contact').value, note: businessInfo.note || '' };
+    try{ localStorage.setItem('business-info', JSON.stringify(businessInfo)); }catch(e){}
+    saveToCloud();
+    renderFinancials();
+  });
 }
 
 function loadAll(){
@@ -824,22 +862,39 @@ function updateInventoryDropdowns() {
 }
 
 const DROPDOWN_CATEGORY = {
-  'b-top-wood': 'tops', 'b-back-wood': 'back_sides', 'b-neck-wood': 'necks', 'b-fb-wood': 'fingerboards',
+  'b-top-wood': 'tops', 'b-back-wood': 'back_sides', 'b-neck-wood': 'necks', 'b-fb-wood': 'fingerboards', 'b-bridge': 'bridges',
   'b-tuners': 'hardware', 'b-frets': 'frets', 'b-bone': 'bone', 'b-tailpiece': 'hardware', 'b-strings': 'strings'
 };
 
-document.addEventListener('change', async (e) => {
+document.addEventListener('change', (e) => {
   if (!e.target.classList.contains('inv-dropdown') || e.target.value !== '__new__') return;
   const dd = e.target;
-  const name = prompt(currentLang==='en' ? 'Name of this new item (you can fill in cost/quantity later from the Inventory tab):' : 'ชื่อรายการใหม่ (สามารถกรอกราคา/จำนวนภายหลังได้ที่แท็บคลังสินค้า):', '');
-  if (!name) { dd.value = ''; return; }
+  dd.value = ''; // reset while the modal is open; only set on successful Save
   const category = DROPDOWN_CATEGORY[dd.id] || 'other';
-  inventory.push({ name, category, supplier: '', qty: 0, unit: 'pieces', cost: '', threshold: 2, notes: '' });
-  await saveInventory();
-  updateInventoryDropdowns();
-  renderInventory();
-  const newIndex = inventory.length - 1;
-  document.querySelectorAll('.inv-dropdown').forEach(d => { if (d.id === dd.id) d.value = String(newIndex); });
+  const species = WOOD_SPECIES_BY_PART[category];
+  const speciesRow = species
+    ? modalField(currentLang==='en'?'Wood Type (suggested)':'ชนิดไม้ (แนะนำ)', `<select id="modal-newitem-species" onchange="document.getElementById('modal-newitem-name').value = this.value || document.getElementById('modal-newitem-name').value"><option value="">-- Pick to auto-fill name --</option>${species.map(s => `<option value="${s}">${s}</option>`).join('')}</select>`)
+    : '';
+  const fields = `
+    ${speciesRow}
+    ${modalField(currentLang==='en'?'Item Name':'ชื่อรายการ', `<input type="text" id="modal-newitem-name" placeholder="e.g. Sitka Spruce">`)}
+    ${modalField(currentLang==='en'?'Part Type':'ประเภทชิ้นส่วน', `<select id="modal-newitem-category">${INV_CATEGORIES.map(c => `<option value="${c}" ${c===category?'selected':''}>${INV_CATEGORY_LABELS[c]}</option>`).join('')}</select>`)}
+    ${modalField(currentLang==='en'?'Cost (Per Unit, optional)':'ต้นทุน (ต่อหน่วย, ไม่บังคับ)', `<input type="number" id="modal-newitem-cost" placeholder="leave blank if unknown">`)}
+    ${modalField(currentLang==='en'?'Quantity on hand':'จำนวนคงเหลือ', `<input type="number" id="modal-newitem-qty" value="0" step="0.5">`)}
+  `;
+  openEditModal(currentLang==='en' ? 'Add New Item' : 'เพิ่มรายการใหม่', fields, async () => {
+    const name = document.getElementById('modal-newitem-name').value.trim();
+    if (!name) return;
+    const newCategory = document.getElementById('modal-newitem-category').value;
+    const cost = document.getElementById('modal-newitem-cost').value;
+    const qty = Number(document.getElementById('modal-newitem-qty').value) || 0;
+    inventory.push({ name, category: newCategory, supplier: '', qty, unit: 'pieces', cost, threshold: 2, notes: '' });
+    await saveInventory();
+    updateInventoryDropdowns();
+    renderInventory();
+    const newIndex = inventory.length - 1;
+    document.querySelectorAll('.inv-dropdown').forEach(d => { if (d.id === dd.id) d.value = String(newIndex); });
+  });
 });
 
 function updateCustomerDropdowns() {
@@ -860,6 +915,49 @@ function calculateDays(startDate) {
 function parseCurrency(str) { if(!str) return 0; return Number(str.toString().replace(/[^0-9.-]+/g,"")) || 0; }
 function formatCurrency(num) { return num.toLocaleString() + ' THB'; }
 
+function renderOverview(){
+  const container = document.getElementById('overviewContent');
+  if(!container) return;
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth();
+
+  const builtThisYear = finishedStock.filter(s => s.completed && new Date(s.completed).getFullYear() === thisYear).length;
+  const builtAllTime = finishedStock.length;
+  const activeBuilds = builds.filter(b => b.stage !== 'setup').length;
+  const inventoryValue = inventory.reduce((sum, item) => sum + (Number(item.qty) * Number(item.cost || 0)), 0);
+
+  let revenueThisMonth = 0, revenueThisYear = 0;
+  finishedStock.forEach(s => {
+    if (s.status === 'sold' && s.soldDate) {
+      const d = new Date(s.soldDate);
+      const price = parseCurrency(s.price);
+      if (d.getFullYear() === thisYear) {
+        revenueThisYear += price;
+        if (d.getMonth() === thisMonth) revenueThisMonth += price;
+      }
+    }
+  });
+
+  const dateStr = now.toLocaleDateString(currentLang==='en' ? 'en-US' : 'th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  container.innerHTML = `
+    <div style="margin-bottom:24px;">
+      <div style="font-family:'Fraunces',serif; font-size:1.4rem; color:var(--cream);">${currentLang==='en' ? 'Your workshop, at a glance' : 'ภาพรวมโรงงานของคุณ'}</div>
+      <div style="font-family:'Inter',sans-serif; font-size:0.82rem; color:var(--wood-dim); margin-top:4px;">${dateStr}</div>
+    </div>
+    <div class="finance-dashboard">
+      <div class="finance-card"><div class="val">${builtThisYear}</div><div class="title">${currentLang==='en' ? `Guitars Built in ${thisYear}` : `กีตาร์ที่สร้างในปี ${thisYear}`}</div></div>
+      <div class="finance-card"><div class="val">${builtAllTime}</div><div class="title">${currentLang==='en' ? 'Guitars Built All-Time' : 'กีตาร์ที่สร้างทั้งหมด'}</div></div>
+      <div class="finance-card"><div class="val" style="color:var(--wood-dim)">${activeBuilds}</div><div class="title">${currentLang==='en' ? 'Currently In Progress' : 'กำลังสร้างอยู่ตอนนี้'}</div></div>
+      <div class="finance-card"><div class="val">${formatCurrency(revenueThisMonth)}</div><div class="title">${currentLang==='en' ? 'Revenue This Month' : 'รายได้เดือนนี้'}</div></div>
+      <div class="finance-card"><div class="val">${formatCurrency(revenueThisYear)}</div><div class="title">${currentLang==='en' ? 'Revenue This Year' : 'รายได้ปีนี้'}</div></div>
+      <div class="finance-card"><div class="val">${customers.length}</div><div class="title">${currentLang==='en' ? 'Customers Served' : 'ลูกค้าที่ให้บริการ'}</div></div>
+      <div class="finance-card"><div class="val" style="color:var(--wood-dim)">${formatCurrency(inventoryValue)}</div><div class="title">${currentLang==='en' ? 'Materials On Hand (Inventory Value)' : 'มูลค่าวัสดุคงเหลือ'}</div></div>
+    </div>
+  `;
+}
+
 function renderSummary(){
   const activeBuilds = builds.filter(b => b.stage !== 'setup').length;
   document.getElementById('summaryRow').innerHTML = `
@@ -868,6 +966,7 @@ function renderSummary(){
     <div class="summary-card"><div class="num">${finishedStock.length}</div><div class="label i18n" data-en="Finished Stock" data-th="กีตาร์ในสต๊อก">${currentLang==='en'?'Finished Stock':'กีตาร์ในสต๊อก'}</div></div>
     <div class="summary-card"><div class="num">${customers.length}</div><div class="label i18n" data-en="Customers" data-th="ลูกค้า">${currentLang==='en'?'Customers':'ลูกค้า'}</div></div>
   `;
+  renderOverview();
 }
 
 const STALE_DAYS = 14;
@@ -955,6 +1054,12 @@ function setInvCategory(cat){ activeInvCategory = cat; renderInventory(); }
 function renderInventory(){
   updateInventoryDropdowns();
 
+  const totalValue = inventory.reduce((sum, item) => sum + (Number(item.qty) * Number(item.cost || 0)), 0);
+  const valueEl = document.getElementById('invTotalValue');
+  if (valueEl) {
+    valueEl.innerHTML = `<div class="finance-card" style="max-width:280px;"><div class="val">${formatCurrency(totalValue)}</div><div class="title">${currentLang==='en' ? 'Total Inventory Value' : 'มูลค่าคลังวัสดุทั้งหมด'}</div></div>`;
+  }
+
   const breakdownParts = ['tops', 'back_sides', 'necks', 'fingerboards', 'bridges', 'bindings'];
   const breakdownEl = document.getElementById('invBreakdown');
   if (breakdownEl) {
@@ -978,56 +1083,96 @@ function renderInventory(){
     .filter(x => activeInvCategory === 'All' || x.item.category === activeInvCategory)
     .filter(x => x.item.name.toLowerCase().includes(query) || x.item.category.toLowerCase().includes(query) || (x.item.supplier || '').toLowerCase().includes(query));
 
-  list.innerHTML = filtered.length ? filtered.map(({item, i}) => {
-    const low = Number(item.qty) <= Number(item.threshold);
-    let emailHtml = '';
-    if(low && item.supplier) {
-      const sup = suppliers.find(s => s.name === item.supplier);
-      if(sup && sup.contact && sup.contact.includes('@')) {
-        const mailto = `mailto:${sup.contact}?subject=Restock%20Request:%20${encodeURIComponent(item.name)}&body=Hello,%0A%0AWe%20need%20to%20restock%20${encodeURIComponent(item.name)}.%20Please%20let%20us%20know%20the%20current%20pricing%20and%20availability.%0A%0AThanks.`;
-        emailHtml = `<a href="${mailto}" class="btn secondary" style="padding:4px 8px;font-size:0.7rem; margin-top:5px; text-decoration:none;">Email Supplier</a>`;
-      }
-    }
-    
-    return `
-      <div class="card ${low ? 'low' : ''}">
-        <div class="card-main">
-          <div class="card-title">${escapeHtml(item.name)} <span style="font-size:0.75rem; color:var(--wood-dim);">[${INV_CATEGORY_LABELS[item.category] || item.category}]</span></div>
-          <div class="card-meta">
-            <span class="qty-pill ${low ? 'low' : ''}">${item.qty} ${escapeHtml(item.unit)}</span>
-            ${item.cost ? `<span>Cost: ${escapeHtml(item.cost)}</span>` : ''}
-            ${item.supplier ? `<span>Supplier: ${escapeHtml(item.supplier)}</span>` : ''}
-            ${low ? '<span style="color:var(--danger)">Low stock</span>' : ''}
-          </div>
-          ${item.notes ? `<div class="card-note">${escapeHtml(item.notes)}</div>` : ''}
-        </div>
-        <div class="card-actions">
-          <div style="display:flex; gap:4px; margin-bottom:4px;">
-            <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="adjustInv(${i}, 1)">+1</button>
-            <button class="btn secondary" style="padding:4px 8px;font-size:0.8rem" onclick="adjustInv(${i}, -1)">-1</button>
-          </div>
-          <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="editInvItem(${i})">${currentLang==='en'?'Edit':'แก้ไข'}</button>
-          ${emailHtml}
-          <button class="btn danger-text" onclick="deleteInv(${i})" style="margin-top:auto;">Remove</button>
-        </div>
-      </div>
-    `;
-  }).join('') : `<div class="empty">${currentLang==='en'?'No inventory found.':'ไม่พบข้อมูลในคลัง'}</div>`;
+  list.innerHTML = filtered.length ? `
+    <div class="inv-list-wrap">
+    <table class="inv-table">
+      <thead><tr>
+        <th>${currentLang==='en'?'Name':'ชื่อ'}</th>
+        <th>${currentLang==='en'?'Part Type':'ประเภท'}</th>
+        <th>${currentLang==='en'?'Qty':'จำนวน'}</th>
+        <th>${currentLang==='en'?'Cost':'ต้นทุน'}</th>
+        <th>${currentLang==='en'?'Supplier':'ซัพพลายเออร์'}</th>
+        <th>${currentLang==='en'?'Notes':'หมายเหตุ'}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      ${filtered.map(({item, i}) => {
+        const low = Number(item.qty) <= Number(item.threshold);
+        let emailHtml = '';
+        if(low && item.supplier) {
+          const sup = suppliers.find(s => s.name === item.supplier);
+          if(sup && sup.contact && sup.contact.includes('@')) {
+            const mailto = `mailto:${sup.contact}?subject=Restock%20Request:%20${encodeURIComponent(item.name)}&body=Hello,%0A%0AWe%20need%20to%20restock%20${encodeURIComponent(item.name)}.%20Please%20let%20us%20know%20the%20current%20pricing%20and%20availability.%0A%0AThanks.`;
+            emailHtml = `<a href="${mailto}" title="Email Supplier" style="text-decoration:none;">✉️</a>`;
+          }
+        }
+        return `<tr class="${low ? 'low' : ''}">
+          <td>${escapeHtml(item.name)}</td>
+          <td>${INV_CATEGORY_LABELS[item.category] || item.category}</td>
+          <td class="num">${item.qty} ${escapeHtml(item.unit)}${low ? ' <span class="low-badge">LOW</span>' : ''}</td>
+          <td>${item.cost ? escapeHtml(item.cost) : '—'}</td>
+          <td>${item.supplier ? escapeHtml(item.supplier) : '—'} ${emailHtml}</td>
+          <td style="max-width:180px; font-size:0.78rem; color:var(--cream-dim);">${item.notes ? escapeHtml(item.notes) : ''}</td>
+          <td class="actions">
+            <button class="btn secondary" style="padding:3px 7px;font-size:0.75rem" onclick="adjustInv(${i}, 1)">+1</button>
+            <button class="btn secondary" style="padding:3px 7px;font-size:0.75rem" onclick="adjustInv(${i}, -1)">-1</button>
+            <button class="btn secondary" style="padding:3px 7px;font-size:0.75rem" onclick="editInvItem(${i})">${currentLang==='en'?'Edit':'แก้ไข'}</button>
+            <button class="btn danger-text" style="padding:3px 7px;" onclick="deleteInv(${i})">${currentLang==='en'?'Remove':'ลบ'}</button>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>
+  ` : `<div class="empty">${currentLang==='en'?'No inventory found.':'ไม่พบข้อมูลในคลัง'}</div>`;
 }
 
-async function editInvItem(i){
+function modalUpdateWoodType(){
+  const category = document.getElementById('modal-category').value;
+  const row = document.getElementById('modal-wood-type-row');
+  const dd = document.getElementById('modal-wood-type');
+  const species = WOOD_SPECIES_BY_PART[category];
+  if (species) {
+    row.style.display = 'block';
+    dd.innerHTML = '<option value="">-- Pick to auto-fill name --</option>' + species.map(s => `<option value="${s}">${s}</option>`).join('');
+  } else {
+    row.style.display = 'none';
+  }
+}
+
+function editInvItem(i){
   const item = inventory[i];
-  const name = prompt(currentLang==='en' ? 'Item name:' : 'ชื่อรายการ:', item.name);
-  if (name === null) return;
-  const cost = prompt(currentLang==='en' ? 'Cost per unit (leave blank if unknown):' : 'ต้นทุนต่อหน่วย (เว้นว่างได้หากยังไม่ทราบ):', item.cost || '');
-  if (cost === null) return;
-  const qty = prompt(currentLang==='en' ? 'Quantity on hand:' : 'จำนวนคงเหลือ:', item.qty);
-  if (qty === null) return;
-  const notes = prompt(currentLang==='en' ? 'Notes:' : 'หมายเหตุ:', item.notes || '');
-  if (notes === null) return;
-  item.name = name; item.cost = cost; item.qty = Number(qty) || 0; item.notes = notes;
-  await saveInventory();
-  renderInventory(); renderSummary();
+  const categoryOptions = INV_CATEGORIES.map(c => `<option value="${c}" ${item.category===c?'selected':''}>${INV_CATEGORY_LABELS[c]}</option>`).join('');
+  const unitOptions = ['sets','pieces','board ft','packs'].map(u => `<option ${item.unit===u?'selected':''}>${u}</option>`).join('');
+  const supplierOptions = '<option value="">-- None --</option>' + suppliers.map(s => `<option value="${s.name}" ${item.supplier===s.name?'selected':''}>${escapeHtml(s.name)}</option>`).join('');
+
+  const fields = `
+    ${modalField('Item Name', `<input type="text" id="modal-name" value="${escapeHtml(item.name)}">`)}
+    ${modalField('Part Type', `<select id="modal-category" onchange="modalUpdateWoodType()">${categoryOptions}</select>`)}
+    <div id="modal-wood-type-row" style="display:none; margin-bottom:12px;">
+      ${modalField('Wood Type (suggested)', `<select id="modal-wood-type" onchange="document.getElementById('modal-name').value=this.value || document.getElementById('modal-name').value"><option value="">-- Pick to auto-fill name --</option></select>`)}
+    </div>
+    ${modalField('Supplier', `<select id="modal-supplier">${supplierOptions}</select>`)}
+    ${modalField('Quantity', `<input type="number" id="modal-qty" step="0.5" value="${item.qty}">`)}
+    ${modalField('Unit', `<select id="modal-unit">${unitOptions}</select>`)}
+    ${modalField('Cost (Per Unit)', `<input type="number" id="modal-cost" value="${escapeHtml(item.cost || '')}">`)}
+    ${modalField('Low-stock alert', `<input type="number" id="modal-threshold" step="0.5" value="${item.threshold}">`)}
+    ${modalField('Notes', `<textarea id="modal-notes" rows="2">${escapeHtml(item.notes || '')}</textarea>`)}
+  `;
+
+  openEditModal(currentLang==='en' ? 'Edit Item' : 'แก้ไขรายการ', fields, async () => {
+    item.name = document.getElementById('modal-name').value;
+    item.category = document.getElementById('modal-category').value;
+    item.supplier = document.getElementById('modal-supplier').value;
+    item.qty = Number(document.getElementById('modal-qty').value) || 0;
+    item.unit = document.getElementById('modal-unit').value;
+    item.cost = document.getElementById('modal-cost').value;
+    item.threshold = document.getElementById('modal-threshold').value;
+    item.notes = document.getElementById('modal-notes').value;
+    await saveInventory();
+    renderInventory(); renderSummary();
+  });
+  modalUpdateWoodType();
 }
 
 function renderSuppliers(){
@@ -1040,9 +1185,32 @@ function renderSuppliers(){
 }
 
 let editingMaterialsIndex = null;
+
+// ====== REUSABLE EDIT MODAL (replaces prompt() popups with a real form) ======
+let modalSaveHandler = null;
+
+function openEditModal(title, fieldsHtml, onSave){
+  document.getElementById('editModalTitle').textContent = title;
+  document.getElementById('editModalFields').innerHTML = fieldsHtml;
+  modalSaveHandler = onSave;
+  document.getElementById('editModalOverlay').style.display = 'flex';
+}
+function closeEditModal(){
+  document.getElementById('editModalOverlay').style.display = 'none';
+  modalSaveHandler = null;
+}
+document.getElementById('editModalSave').addEventListener('click', async () => {
+  if (modalSaveHandler) await modalSaveHandler();
+  closeEditModal();
+});
+
+function modalField(labelText, inputHtml){
+  return `<div style="margin-bottom:12px;"><label style="font-family:'Inter',sans-serif; font-size:0.72rem; color:#a89a80; text-transform:uppercase; letter-spacing:0.7px; display:block; margin-bottom:5px;">${labelText}</label>${inputHtml}</div>`;
+}
+
 const MATERIAL_SLOTS = [
   { key: 'topWood', label: 'Top Wood' }, { key: 'backWood', label: 'Back & Sides' }, { key: 'neckWood', label: 'Neck Wood' },
-  { key: 'fbWood', label: 'Fingerboard' }, { key: 'tuners', label: 'Tuners' }, { key: 'frets', label: 'Frets' },
+  { key: 'fbWood', label: 'Fingerboard' }, { key: 'bridgeWood', label: 'Bridge' }, { key: 'tuners', label: 'Tuners' }, { key: 'frets', label: 'Frets' },
   { key: 'bone', label: 'Bone (Nut/Saddle)' }, { key: 'tailpiece', label: 'Tailpiece' }, { key: 'strings', label: 'Strings' }
 ];
 
@@ -1109,7 +1277,7 @@ function renderBuilds(){
   list.innerHTML = filtered.length ? filtered.map(({b, i}) => {
     const stageIdx = STAGE_ORDER.indexOf(b.stage); const track = STAGE_ORDER.map((s, idx) => `<div class="${idx <= stageIdx ? 'filled' : ''}"></div>`).join('');
     const daysElapsed = calculateDays(b.started); const isCust = b.customer && b.customer !== "Standard / Speculative Build";
-    const parts = ['topWood', 'backWood', 'neckWood', 'fbWood', 'tuners', 'frets', 'bone', 'tailpiece', 'strings'].filter(k => b[k]).map(k => `<strong>${k.replace('Wood','')}:</strong> ${escapeHtml(b[k])}`);
+    const parts = ['topWood', 'backWood', 'neckWood', 'fbWood', 'bridgeWood', 'tuners', 'frets', 'bone', 'tailpiece', 'strings'].filter(k => b[k]).map(k => `<strong>${k.replace('Wood','')}:</strong> ${escapeHtml(b[k])}`);
     if(b.bracing){
       const bracingLabel = GJ_BRACING_LABELS[b.bracing] || CLASSICAL_BRACING_LABELS[b.bracing] || escapeHtml(b.bracing);
       parts.unshift(`<strong>Bracing:</strong> ${bracingLabel}`);
@@ -1226,20 +1394,24 @@ const GJ_BRACING_LABELS = { brace_4: '4-Brace (Selmer style)', brace_5: '5-Brace
 const CLASSICAL_BRACING_LABELS = { fan_torres: 'Traditional Fan Bracing (Torres-style)', lattice: 'Lattice Bracing', double_top: 'Double Top (Lattice-Sandwich)', hybrid_fan_lattice: 'Hybrid Fan/Lattice', other: 'Other/Custom' };
 const NECK_PROFILE_LABELS = { c_shape: 'C-Shape', soft_v: 'Soft V', full_v: 'Full V', d_shape: 'D-Shape', u_shape: 'U-Shape', other: 'Other/Custom' };
 
-async function editJournal(i){
+function editJournal(i){
   const s = finishedStock[i];
-  const brightness = prompt(currentLang==='en' ? 'Brightness (Dark / Balanced / Bright):' : 'ความสว่างของเสียง (ทึบ / สมดุล / สว่าง):', s.brightness || '');
-  if(brightness === null) return;
-  const projection = prompt(currentLang==='en' ? 'Projection (Low / Medium / High):' : 'การกระจายเสียง (ต่ำ / ปานกลาง / สูง):', s.projection || '');
-  if(projection === null) return;
-  const sustain = prompt(currentLang==='en' ? 'Sustain (Short / Medium / Long):' : 'ความยาวเสียงก้อง (สั้น / ปานกลาง / ยาว):', s.sustain || '');
-  if(sustain === null) return;
-  const rating = prompt(currentLang==='en' ? 'Overall rating (1-5):' : 'คะแนนโดยรวม (1-5):', s.rating || '');
-  if(rating === null) return;
-  const journalNotes = prompt(currentLang==='en' ? 'Journal notes (tone impressions, how it played in, anything worth remembering):' : 'บันทึกเพิ่มเติม (ความรู้สึกต่อโทนเสียง เป็นต้น):', s.journalNotes || '');
-  if(journalNotes === null) return;
-  s.brightness = brightness; s.projection = projection; s.sustain = sustain; s.rating = rating; s.journalNotes = journalNotes;
-  await saveStock(); renderStock();
+  const opt = (val, options) => options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('');
+  const fields = `
+    ${modalField(currentLang==='en'?'Brightness':'ความสว่างของเสียง', `<select id="modal-brightness"><option value="">--</option>${opt(s.brightness, ['Dark','Balanced','Bright'])}</select>`)}
+    ${modalField(currentLang==='en'?'Projection':'การกระจายเสียง', `<select id="modal-projection"><option value="">--</option>${opt(s.projection, ['Low','Medium','High'])}</select>`)}
+    ${modalField(currentLang==='en'?'Sustain':'ความยาวเสียงก้อง', `<select id="modal-sustain"><option value="">--</option>${opt(s.sustain, ['Short','Medium','Long'])}</select>`)}
+    ${modalField(currentLang==='en'?'Overall Rating':'คะแนนโดยรวม', `<select id="modal-rating"><option value="">--</option>${opt(String(s.rating||''), ['1','2','3','4','5'])}</select>`)}
+    ${modalField(currentLang==='en'?'Journal Notes':'บันทึกเพิ่มเติม', `<textarea id="modal-journal-notes" rows="3">${escapeHtml(s.journalNotes || '')}</textarea>`)}
+  `;
+  openEditModal(currentLang==='en' ? "Maker's Journal" : 'บันทึกของช่าง', fields, async () => {
+    s.brightness = document.getElementById('modal-brightness').value;
+    s.projection = document.getElementById('modal-projection').value;
+    s.sustain = document.getElementById('modal-sustain').value;
+    s.rating = document.getElementById('modal-rating').value;
+    s.journalNotes = document.getElementById('modal-journal-notes').value;
+    await saveStock(); renderStock();
+  });
 }
 
 function renderStock(){
@@ -1438,7 +1610,7 @@ toggleGJOptions();
 
 document.getElementById('buildForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const dropdownIds = ['b-top-wood', 'b-back-wood', 'b-neck-wood', 'b-fb-wood', 'b-tuners', 'b-frets', 'b-bone', 'b-tailpiece', 'b-strings']; const keys = ['topWood', 'backWood', 'neckWood', 'fbWood', 'tuners', 'frets', 'bone', 'tailpiece', 'strings'];
+  const dropdownIds = ['b-top-wood', 'b-back-wood', 'b-neck-wood', 'b-fb-wood', 'b-bridge', 'b-tuners', 'b-frets', 'b-bone', 'b-tailpiece', 'b-strings']; const keys = ['topWood', 'backWood', 'neckWood', 'fbWood', 'bridgeWood', 'tuners', 'frets', 'bone', 'tailpiece', 'strings'];
   const pendingLinkId = document.getElementById('b-name').dataset.linkedOrderId || null;
   const isGJ = document.getElementById('b-type').value === 'Gypsy Jazz';
   const isClassical = document.getElementById('b-type').value === 'Classical';
@@ -1462,13 +1634,16 @@ document.getElementById('buildForm').addEventListener('submit', async (e) => {
   e.target.reset(); toggleGJOptions(); renderBuilds(); renderOrders(); renderSummary();
 });
 
-async function renameBuild(i){
+function renameBuild(i){
   const b = builds[i];
-  const newName = prompt(currentLang==='en' ? 'New name / ID for this guitar:' : 'ชื่อ / รหัสใหม่สำหรับกีตาร์นี้:', b.name);
-  if (newName === null || !newName.trim()) return;
-  b.name = newName.trim();
-  await saveBuilds();
-  renderBuilds(); renderOrders();
+  const fields = modalField(currentLang==='en' ? 'Guitar Name / ID' : 'ชื่อ / รหัสกีตาร์', `<input type="text" id="modal-build-name" value="${escapeHtml(b.name)}">`);
+  openEditModal(currentLang==='en' ? 'Rename Guitar' : 'เปลี่ยนชื่อกีตาร์', fields, async () => {
+    const newName = document.getElementById('modal-build-name').value.trim();
+    if (!newName) return;
+    b.name = newName;
+    await saveBuilds();
+    renderBuilds(); renderOrders();
+  });
 }
 
 function duplicateBuild(i){
@@ -1489,8 +1664,8 @@ function duplicateBuild(i){
   document.getElementById('b-action-bass').value = b.actionBass || '';
   document.getElementById('b-action-treble').value = b.actionTreble || '';
   document.getElementById('b-saddle-height').value = b.saddleHeight || '';
-  const materialKeys = ['topWood','backWood','neckWood','fbWood','tuners','frets','bone','tailpiece','strings'];
-  const dropdownIds = ['b-top-wood','b-back-wood','b-neck-wood','b-fb-wood','b-tuners','b-frets','b-bone','b-tailpiece','b-strings'];
+  const materialKeys = ['topWood','backWood','neckWood','fbWood','bridgeWood','tuners','frets','bone','tailpiece','strings'];
+  const dropdownIds = ['b-top-wood','b-back-wood','b-neck-wood','b-fb-wood','b-bridge','b-tuners','b-frets','b-bone','b-tailpiece','b-strings'];
   materialKeys.forEach((key, idx) => {
     const name = b[key];
     const dd = document.getElementById(dropdownIds[idx]);
@@ -1536,7 +1711,11 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
 
 
 async function updateBuildStage(i, stage){ builds[i].stage = stage; builds[i].stageUpdated = Date.now(); await saveBuilds(); renderBuilds(); }
-async function updateStockStatus(i, status){ finishedStock[i].status = status; await saveStock(); renderStock(); renderFinancials(); }
+async function updateStockStatus(i, status){
+  finishedStock[i].status = status;
+  if (status === 'sold' && !finishedStock[i].soldDate) { finishedStock[i].soldDate = new Date().toISOString().slice(0,10); }
+  await saveStock(); renderStock(); renderFinancials(); renderOverview();
+}
 async function updateOrderStatus(i, status){ orders[i].status = status; await saveOrders(); renderOrders(); renderFinancials(); }
 async function updateRepairStatus(i, status){ repairs[i].status = status; await saveRepairs(); renderRepairs(); }
 
@@ -1578,7 +1757,7 @@ async function moveToStock(i){
 async function deleteBuild(i){
   const b = builds[i];
   if(!confirmDelete(b.name)) return;
-  const materialKeys = ['topWood','backWood','neckWood','fbWood','tuners','frets','bone','tailpiece','strings'];
+  const materialKeys = ['topWood','backWood','neckWood','fbWood','bridgeWood','tuners','frets','bone','tailpiece','strings'];
   materialKeys.forEach(key => {
     const usedName = b[key];
     if(!usedName) return;
