@@ -287,9 +287,6 @@
 
     <div class="nav-container">
       <div class="nav-group">
-        <button data-tab="today" id="todayNavBtn" style="font-weight:600;">Today</button>
-      </div>
-      <div class="nav-group">
         <div class="nav-title i18n" data-en="The Shop Floor" data-th="พื้นที่ปฏิบัติงาน">The Shop Floor</div>
         <button data-tab="builds" class="active i18n" data-en="Active Builds" data-th="กำลังสร้าง">Active Builds</button>
         <button data-tab="repairs" class="i18n" data-en="Repairs" data-th="งานซ่อมแซม">Repairs</button>
@@ -317,11 +314,6 @@
     
     <div class="summary-row" id="summaryRow"></div>
 
-    <!-- TODAY / ATTENTION TAB -->
-    <section id="today">
-      <div id="todayList"></div>
-    </section>
-
     <!-- FINANCIALS TAB -->
     <section id="financials">
       <div class="finance-dashboard" id="financeDashboard"></div>
@@ -342,9 +334,29 @@
       <form id="inventoryForm">
         <div class="row">
           <div><label><span class="i18n" data-en="Item / Material" data-th="รายการ / วัสดุ">Item / Material</span></label><input type="text" id="i-name" placeholder="e.g. Indian Rosewood, Gotoh Tuners" required></div>
-          <div><label><span class="i18n" data-en="Category" data-th="หมวดหมู่">Category</span></label><select id="i-category"><option value="wood">Wood</option><option value="hardware">Hardware (Tuners, Tailpiece)</option><option value="strings">Strings</option><option value="bone">Bone (Nut/Saddle)</option><option value="frets">Frets</option><option value="other">Other</option></select></div>
+          <div><label><span class="i18n" data-en="Part Type" data-th="ประเภทชิ้นส่วน">Part Type</span></label><select id="i-category">
+            <option value="tops">Tops</option>
+            <option value="back_sides">Back &amp; Sides</option>
+            <option value="necks">Necks</option>
+            <option value="fingerboards">Fingerboards</option>
+            <option value="bridges">Bridges</option>
+            <option value="bindings">Bindings</option>
+            <option value="hardware">Hardware</option>
+            <option value="strings">Strings</option>
+            <option value="bone">Bone</option>
+            <option value="frets">Frets</option>
+            <option value="other">Other</option>
+          </select></div>
           <div><label><span class="i18n" data-en="Supplier (Optional)" data-th="ซัพพลายเออร์">Supplier (Optional)</span></label><select id="i-supplier" class="sup-dropdown"><option value="">-- None --</option></select></div>
           <div><label><span class="i18n" data-en="Quantity" data-th="จำนวน">Quantity</span></label><input type="number" id="i-qty" min="0" step="0.5" placeholder="0" required></div>
+        </div>
+        <div class="row" id="woodTypeRow" style="display:none;">
+          <div>
+            <label><span class="i18n" data-en="Wood Type (suggested)" data-th="ชนิดไม้ (แนะนำ)">Wood Type (suggested)</span></label>
+            <select id="i-wood-type">
+              <option value="">-- Pick to auto-fill name --</option>
+            </select>
+          </div>
         </div>
         <div class="row">
           <div><label><span class="i18n" data-en="Unit" data-th="หน่วย">Unit</span></label><select id="i-unit"><option>sets</option><option>pieces</option><option>board ft</option><option>packs</option></select></div>
@@ -354,6 +366,7 @@
         </div>
         <button type="submit" class="btn i18n" data-en="Add to Inventory" data-th="เพิ่มลงคลัง">Add to Inventory</button>
       </form>
+      <div id="invBreakdown" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;"></div>
       <div class="filters" id="invCategoryFilters" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;"></div>
       <input type="text" id="inventorySearch" class="search-bar" placeholder="Search inventory..." onkeyup="renderInventory()">
       <div id="inventoryList"></div>
@@ -470,6 +483,20 @@
               <option value="double_top">Double Top (Lattice-Sandwich)</option>
               <option value="hybrid_fan_lattice">Hybrid Fan/Lattice</option>
               <option value="other">Other / Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label><span class="i18n" data-en="Rosette Type" data-th="ประเภทโรเซ็ท">Rosette Type</span></label>
+            <select id="b-rosette">
+              <option value="mosaic">Traditional Mosaic / Classical Mosaic</option>
+              <option value="herringbone">Wood Herringbone</option>
+              <option value="rope">Rope / Multi-line B/W/B</option>
+              <option value="simple_ring">Simple Wood Ring (Abalone / Mother of Pearl)</option>
+              <option value="custom_mosaic">Custom / Hand-made Mosaic</option>
+              <option value="none">None / Plain</option>
             </select>
           </div>
         </div>
@@ -639,7 +666,7 @@ let currentDate = new Date();
 function toggleLanguage() {
   currentLang = currentLang === 'en' ? 'th' : 'en';
   document.querySelectorAll('.i18n').forEach(el => { el.innerText = el.getAttribute(`data-${currentLang}`); });
-  renderFinancials(); renderToday(); renderOrders(); renderRepairs(); renderInventory();
+  renderFinancials(); renderOrders(); renderRepairs(); renderInventory();
 }
 
 const STAGE_LABELS = {
@@ -787,7 +814,7 @@ function updateSupplierDropdown() {
 
 function updateInventoryDropdowns() {
   const dropdowns = document.querySelectorAll('.inv-dropdown'); let options = '<option value="">-- None --</option>';
-  inventory.forEach((item, i) => { options += `<option value="${i}">[${item.category.toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`; });
+  inventory.forEach((item, i) => { options += `<option value="${i}">[${(INV_CATEGORY_LABELS[item.category] || item.category).toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`; });
   options += '<option value="__new__">+ Add new item...</option>';
   dropdowns.forEach(dd => {
     const prevValue = dd.value;
@@ -797,7 +824,7 @@ function updateInventoryDropdowns() {
 }
 
 const DROPDOWN_CATEGORY = {
-  'b-top-wood': 'wood', 'b-back-wood': 'wood', 'b-neck-wood': 'wood', 'b-fb-wood': 'wood',
+  'b-top-wood': 'tops', 'b-back-wood': 'back_sides', 'b-neck-wood': 'necks', 'b-fb-wood': 'fingerboards',
   'b-tuners': 'hardware', 'b-frets': 'frets', 'b-bone': 'bone', 'b-tailpiece': 'hardware', 'b-strings': 'strings'
 };
 
@@ -841,41 +868,9 @@ function renderSummary(){
     <div class="summary-card"><div class="num">${finishedStock.length}</div><div class="label i18n" data-en="Finished Stock" data-th="กีตาร์ในสต๊อก">${currentLang==='en'?'Finished Stock':'กีตาร์ในสต๊อก'}</div></div>
     <div class="summary-card"><div class="num">${customers.length}</div><div class="label i18n" data-en="Customers" data-th="ลูกค้า">${currentLang==='en'?'Customers':'ลูกค้า'}</div></div>
   `;
-  renderToday();
 }
 
 const STALE_DAYS = 14;
-
-function renderToday(){
-  const container = document.getElementById('todayList');
-  if(!container) return;
-  const today = new Date(new Date().toDateString());
-
-  const lowStock = inventory.filter(item => Number(item.qty) <= Number(item.threshold));
-  const overdueOrders = orders.filter(o => !o.archived && o.status !== 'done' && o.date && new Date(o.date) < today);
-  const overdueRepairs = repairs.filter(r => r.status !== 'done' && r.date && (today - new Date(r.date))/(1000*60*60*24) > STALE_DAYS);
-  const stalledBuilds = builds.filter(b => b.stage !== 'setup' && b.stageUpdated && (Date.now() - b.stageUpdated)/(1000*60*60*24) > STALE_DAYS);
-
-  const badgeCount = lowStock.length + overdueOrders.length + overdueRepairs.length + stalledBuilds.length;
-  const navBtn = document.getElementById('todayNavBtn');
-  if(navBtn) navBtn.innerHTML = `${currentLang==='en'?'Today':'วันนี้'}${badgeCount ? ` <span style="background:var(--danger);color:#fff;border-radius:10px;padding:1px 7px;font-size:0.7rem;margin-left:4px;">${badgeCount}</span>` : ''}`;
-
-  const section = (title, items, renderItem) => {
-    if(!items.length) return '';
-    return `<div class="group-label" style="font-family:'Inter',sans-serif; font-size:0.75rem; color:var(--wood-dim); text-transform:uppercase; letter-spacing:1px; margin:20px 0 8px;">${title} (${items.length})</div>` + items.map(renderItem).join('');
-  };
-
-  let html = '';
-  html += section(currentLang==='en' ? 'Low Stock' : 'สต๊อกต่ำ', lowStock, item => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(item.name)}</div><div class="card-meta"><span class="qty-pill low">${item.qty} ${escapeHtml(item.unit)}</span></div></div></div>`);
-  html += section(currentLang==='en' ? 'Overdue Orders' : 'คำสั่งซื้อเลยกำหนด', overdueOrders, o => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(o.customer)} — ${escapeHtml(o.type)}</div><div class="card-meta"><span>${currentLang==='en'?'Target':'กำหนดส่ง'}: ${escapeHtml(o.date)}</span></div></div></div>`);
-  html += section(currentLang==='en' ? 'Repairs Waiting 14+ Days' : 'งานซ่อมค้างเกิน 14 วัน', overdueRepairs, r => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(r.instrument)}</div><div class="card-meta"><span>${currentLang==='en'?'Customer':'ลูกค้า'}: ${escapeHtml(r.customer)}</span><span>${currentLang==='en'?'Intake':'วันที่รับ'}: ${escapeHtml(r.date)}</span></div></div></div>`);
-  html += section(currentLang==='en' ? 'Stalled Builds (no stage change in 14+ days)' : 'งานที่ไม่มีความคืบหน้าเกิน 14 วัน', stalledBuilds, b => `<div class="card low"><div class="card-main"><div class="card-title">${escapeHtml(b.name)} — ${escapeHtml(b.type)}</div><div class="card-meta"><span class="badge stage">${STAGE_LABELS[b.stage]}</span></div></div></div>`);
-
-  if(badgeCount === 0){
-    html = `<div class="empty">${currentLang==='en' ? "Nothing needs attention right now — you're all caught up." : 'ไม่มีอะไรต้องจัดการตอนนี้ ทุกอย่างเรียบร้อยดี'}</div>`;
-  }
-  container.innerHTML = html;
-}
 
 function renderFinancials() {
   const dashboard = document.getElementById('financeDashboard');
@@ -923,13 +918,52 @@ function changeMonth(delta) {
 }
 
 let activeInvCategory = 'All';
-const INV_CATEGORIES = ['wood', 'hardware', 'strings', 'bone', 'frets', 'other'];
-const INV_CATEGORY_LABELS = { wood: 'Wood', hardware: 'Hardware', strings: 'Strings', bone: 'Bone', frets: 'Frets', other: 'Other' };
+const INV_CATEGORIES = ['tops', 'back_sides', 'necks', 'fingerboards', 'bridges', 'bindings', 'hardware', 'strings', 'bone', 'frets', 'other'];
+const INV_CATEGORY_LABELS = { tops: 'Tops', back_sides: 'Back & Sides', necks: 'Necks', fingerboards: 'Fingerboards', bridges: 'Bridges', bindings: 'Bindings', hardware: 'Hardware', strings: 'Strings', bone: 'Bone', frets: 'Frets', other: 'Other', wood: 'Wood (legacy)' };
+
+const WOOD_SPECIES_BY_PART = {
+  tops: ['Sitka Spruce', 'European Spruce', 'Engelmann Spruce', 'Adirondack (Red) Spruce', 'Western Red Cedar', 'Redwood', 'Alpine Spruce', 'Moon Spruce'],
+  back_sides: ['Indian Rosewood', 'Honduran Rosewood', 'Madagascar Rosewood', 'Brazilian Rosewood', 'Cocobolo', 'Flame Mahogany', 'Figured Mahogany', 'Sapele', 'Figured Maple', 'Bigleaf Maple', 'Ziricote', 'Koa', 'Blackwood', 'Monkeypod', 'Acacia'],
+  necks: ['Honduran Mahogany', 'Spanish Cedar', 'Hard Maple', 'Roasted Maple', 'Peruvian Walnut', 'Black Walnut'],
+  fingerboards: ['African Ebony', 'Macassar Ebony', 'Ziricote', 'Brazilian Rosewood', 'Indian Rosewood', 'Pau Ferro'],
+  bridges: ['African Ebony', 'Macassar Ebony', 'Ziricote', 'Brazilian Rosewood', 'Indian Rosewood', 'Pau Ferro'],
+  bindings: ['Curly Maple', 'Flamed Koa', 'Rosewood', 'Ebony', 'Boxwood', 'Fiber Purfling (B/W/B)']
+};
+
+function updateWoodTypeOptions(){
+  const category = document.getElementById('i-category').value;
+  const row = document.getElementById('woodTypeRow');
+  const dd = document.getElementById('i-wood-type');
+  const species = WOOD_SPECIES_BY_PART[category];
+  if (species) {
+    row.style.display = 'flex';
+    dd.innerHTML = '<option value="">-- Pick to auto-fill name --</option>' + species.map(s => `<option value="${s}">${s}</option>`).join('');
+  } else {
+    row.style.display = 'none';
+    dd.innerHTML = '<option value="">-- Pick to auto-fill name --</option>';
+  }
+}
+document.getElementById('i-category').addEventListener('change', updateWoodTypeOptions);
+document.getElementById('i-wood-type').addEventListener('change', (e) => {
+  const nameField = document.getElementById('i-name');
+  if (e.target.value && !nameField.value.trim()) { nameField.value = e.target.value; }
+});
+updateWoodTypeOptions();
 
 function setInvCategory(cat){ activeInvCategory = cat; renderInventory(); }
 
 function renderInventory(){
   updateInventoryDropdowns();
+
+  const breakdownParts = ['tops', 'back_sides', 'necks', 'fingerboards', 'bridges', 'bindings'];
+  const breakdownEl = document.getElementById('invBreakdown');
+  if (breakdownEl) {
+    breakdownEl.innerHTML = breakdownParts.map(cat => {
+      const count = inventory.filter(item => item.category === cat).length;
+      return `<div class="summary-card" style="flex:1; min-width:110px;"><div class="num">${count}</div><div class="label">${INV_CATEGORY_LABELS[cat]}</div></div>`;
+    }).join('');
+  }
+
   const filterRow = document.getElementById('invCategoryFilters');
   const allCats = ['All', ...INV_CATEGORIES];
   filterRow.innerHTML = allCats.map(c => {
@@ -958,7 +992,7 @@ function renderInventory(){
     return `
       <div class="card ${low ? 'low' : ''}">
         <div class="card-main">
-          <div class="card-title">${escapeHtml(item.name)} <span style="font-size:0.75rem; color:var(--wood-dim);">[${item.category}]</span></div>
+          <div class="card-title">${escapeHtml(item.name)} <span style="font-size:0.75rem; color:var(--wood-dim);">[${INV_CATEGORY_LABELS[item.category] || item.category}]</span></div>
           <div class="card-meta">
             <span class="qty-pill ${low ? 'low' : ''}">${item.qty} ${escapeHtml(item.unit)}</span>
             ${item.cost ? `<span>Cost: ${escapeHtml(item.cost)}</span>` : ''}
@@ -1016,7 +1050,7 @@ function materialDropdownOptions(selectedName){
   let opts = '<option value="">-- None --</option>';
   inventory.forEach((item, idx) => {
     const sel = item.name === selectedName ? 'selected' : '';
-    opts += `<option value="${idx}" ${sel}>[${item.category.toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`;
+    opts += `<option value="${idx}" ${sel}>[${(INV_CATEGORY_LABELS[item.category] || item.category).toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`;
   });
   opts += '<option value="__new__">+ Add new item...</option>';
   return opts;
@@ -1083,6 +1117,7 @@ function renderBuilds(){
     if(b.pliage) parts.unshift(`<strong>Top:</strong> ${PLIAGE_LABELS[b.pliage] || escapeHtml(b.pliage)}`);
     if(b.shape) parts.unshift(`<strong>Shape:</strong> ${SHAPE_LABELS[b.shape] || escapeHtml(b.shape)}`);
     if(b.soundhole) parts.unshift(`<strong>Soundhole:</strong> ${SOUNDHOLE_LABELS[b.soundhole] || escapeHtml(b.soundhole)}`);
+    if(b.rosette) parts.unshift(`<strong>Rosette:</strong> ${ROSETTE_LABELS[b.rosette] || escapeHtml(b.rosette)}`);
     const specParts = [];
     if(b.scaleLength) specParts.push(`<strong>Scale:</strong> ${escapeHtml(b.scaleLength)}mm`);
     if(b.nutWidth) specParts.push(`<strong>Nut:</strong> ${escapeHtml(b.nutWidth)}mm`);
@@ -1116,7 +1151,7 @@ function renderBuilds(){
     return `
       <div class="card">
         <div class="card-main">
-          <div class="card-title">${escapeHtml(b.name)} — ${escapeHtml(b.type)} ${b.media ? `<a href="${b.media}" target="_blank" class="btn secondary" style="padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; text-decoration:none;">Media</a>` : ''}</div>
+          <div class="card-title">${escapeHtml(b.name)} <button onclick="renameBuild(${i})" title="${currentLang==='en'?'Rename':'เปลี่ยนชื่อ'}" style="background:none;border:none;color:var(--wood-dim);cursor:pointer;font-size:0.85rem;padding:0 4px;">✏️</button> — ${escapeHtml(b.type)} ${b.media ? `<a href="${b.media}" target="_blank" class="btn secondary" style="padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; text-decoration:none;">Media</a>` : ''}</div>
           <div class="card-meta"><span class="badge stage">${STAGE_LABELS[b.stage]}</span><span>${b.customer ? `for <strong>${escapeHtml(b.customer)}</strong>` : 'speculative build'}</span><span>Started: ${b.started}</span><span style="color:${isCust ? 'var(--warn)' : 'var(--wood-dim)'}; font-weight:600;">${daysElapsed} ${currentLang==='en' ? 'days in progress' : 'วันที่ผ่านมา'}</span>${b.materialCost ? `<span>${currentLang==='en'?'Materials so far':'ต้นทุนวัสดุ'}: ${formatCurrency(b.materialCost)}</span>` : ''}</div>
           ${materialsBlock}
           ${specParts.length > 0 ? `<div class="card-specs">${specParts.join(' &nbsp;·&nbsp; ')}</div>` : ''}
@@ -1184,6 +1219,7 @@ function renderOrders(){
 }
 
 const SOUNDHOLE_LABELS = { grande_bouche: 'Grande Bouche (D-hole)', petite_bouche: 'Petite Bouche (Oval)', f_hole: 'F-Hole (Archtop-style)', other: 'Other/Custom' };
+const ROSETTE_LABELS = { mosaic: 'Traditional Mosaic', herringbone: 'Wood Herringbone', rope: 'Rope / Multi-line B/W/B', simple_ring: 'Simple Wood Ring (Abalone/MOP)', custom_mosaic: 'Custom / Hand-made Mosaic', none: 'None / Plain' };
 const SHAPE_LABELS = { selmer_jazz: 'Selmer Modèle Jazz', selmer_503: 'Selmer 503 style', favino: 'Favino style', busato: 'Busato style', dimauro: 'DiMauro style', other: 'Other/Custom' };
 const PLIAGE_LABELS = { pliage: 'Heat-bent Pliage', forced: 'Forced/Pressed Top', flat: 'Flat Top' };
 const GJ_BRACING_LABELS = { brace_4: '4-Brace (Selmer style)', brace_5: '5-Brace (Modern standard)', brace_3: '3-Brace (Vintage F-hole style)', fhole_archtop: 'F-Hole Archtop-style Bracing', ladder: 'Ladder Bracing', other: 'Other/Custom' };
@@ -1217,7 +1253,7 @@ function renderStock(){
         ${[s.brightness && `Brightness: ${escapeHtml(s.brightness)}`, s.projection && `Projection: ${escapeHtml(s.projection)}`, s.sustain && `Sustain: ${escapeHtml(s.sustain)}`].filter(Boolean).join(' &nbsp;·&nbsp; ')}
         ${s.journalNotes ? `<div style="margin-top:4px;">${escapeHtml(s.journalNotes)}</div>` : ''}
       </div>` : '';
-    return `<div class="card"><div class="card-main"><div class="card-title">${escapeHtml(s.name)} — ${escapeHtml(s.type)}</div><div class="card-meta"><span class="badge ${s.status}">${STOCK_LABELS[s.status]}</span> ${s.soundhole ? `<span>${SOUNDHOLE_LABELS[s.soundhole] || escapeHtml(s.soundhole)}</span>` : ''}${s.shape ? `<span>${SHAPE_LABELS[s.shape] || escapeHtml(s.shape)}</span>` : ''}${s.pliage ? `<span>${PLIAGE_LABELS[s.pliage] || escapeHtml(s.pliage)}</span>` : ''}${bracingLabel ? `<span>${escapeHtml(bracingLabel)}</span>` : ''}${s.price ? `<span>${escapeHtml(s.price)} THB</span>` : ''}${s.cost ? `<span>Cost: ${escapeHtml(s.cost)}</span>` : ''}</div>${journalHtml}</div><div class="card-actions"><select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateStockStatus(${i}, this.value)">${Object.entries(STOCK_LABELS).map(([k,v]) => `<option value="${k}" ${s.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="printCard('stock', ${i})">Print Spec</button><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="editJournal(${i})">${hasJournal ? (currentLang==='en'?'Edit Journal':'แก้ไขบันทึก') : (currentLang==='en'?'Add Journal':'เพิ่มบันทึก')}</button><button class="btn danger-text" onclick="deleteStock(${i})" style="margin-top:auto;">Remove</button></div></div>`;
+    return `<div class="card"><div class="card-main"><div class="card-title">${escapeHtml(s.name)} — ${escapeHtml(s.type)}</div><div class="card-meta"><span class="badge ${s.status}">${STOCK_LABELS[s.status]}</span> ${s.soundhole ? `<span>${SOUNDHOLE_LABELS[s.soundhole] || escapeHtml(s.soundhole)}</span>` : ''}${s.shape ? `<span>${SHAPE_LABELS[s.shape] || escapeHtml(s.shape)}</span>` : ''}${s.pliage ? `<span>${PLIAGE_LABELS[s.pliage] || escapeHtml(s.pliage)}</span>` : ''}${s.rosette ? `<span>${ROSETTE_LABELS[s.rosette] || escapeHtml(s.rosette)}</span>` : ''}${bracingLabel ? `<span>${escapeHtml(bracingLabel)}</span>` : ''}${s.price ? `<span>${escapeHtml(s.price)} THB</span>` : ''}${s.cost ? `<span>Cost: ${escapeHtml(s.cost)}</span>` : ''}</div>${journalHtml}</div><div class="card-actions"><select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateStockStatus(${i}, this.value)">${Object.entries(STOCK_LABELS).map(([k,v]) => `<option value="${k}" ${s.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="printCard('stock', ${i})">Print Spec</button><button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="editJournal(${i})">${hasJournal ? (currentLang==='en'?'Edit Journal':'แก้ไขบันทึก') : (currentLang==='en'?'Add Journal':'เพิ่มบันทึก')}</button><button class="btn danger-text" onclick="deleteStock(${i})" style="margin-top:auto;">Remove</button></div></div>`;
   }).join('') : '<div class="empty">No finished stock.</div>';
 }
 
@@ -1260,6 +1296,7 @@ function printCard(type, idx) {
          ${s.shape ? `<p><strong>Body Shape:</strong> ${SHAPE_LABELS[s.shape] || escapeHtml(s.shape)}</p>` : ''}
          ${s.soundhole ? `<p><strong>Soundhole:</strong> ${SOUNDHOLE_LABELS[s.soundhole] || escapeHtml(s.soundhole)}</p>` : ''}
          ${s.pliage ? `<p><strong>Top Construction:</strong> ${PLIAGE_LABELS[s.pliage] || escapeHtml(s.pliage)}</p>` : ''}
+         ${s.rosette ? `<p><strong>Rosette:</strong> ${ROSETTE_LABELS[s.rosette] || escapeHtml(s.rosette)}</p>` : ''}
          ${bracingLabel ? `<p><strong>Bracing:</strong> ${escapeHtml(bracingLabel)}</p>` : ''}
          ${s.scaleLength ? `<p><strong>Scale Length:</strong> ${escapeHtml(s.scaleLength)}mm</p>` : ''}
          ${s.nutWidth ? `<p><strong>Nut Width:</strong> ${escapeHtml(s.nutWidth)}mm</p>` : ''}
@@ -1409,8 +1446,9 @@ document.getElementById('buildForm').addEventListener('submit', async (e) => {
   const shapeVal = isGJ ? document.getElementById('b-shape').value : '';
   const pliageVal = isGJ ? document.getElementById('b-pliage').value : '';
   const bracingVal = isGJ ? document.getElementById('b-gj-bracing').value : (isClassical ? document.getElementById('b-classical-bracing').value : '');
+  const rosetteVal = document.getElementById('b-rosette').value;
   const skipDeduct = document.getElementById('b-skip-deduct').checked;
-  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null, skipDeduct: skipDeduct };
+  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, rosette: rosetteVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null, skipDeduct: skipDeduct };
   let deductOccurred = false;
   dropdownIds.forEach((ddId, index) => {
     const val = document.getElementById(ddId).value;
@@ -1424,6 +1462,15 @@ document.getElementById('buildForm').addEventListener('submit', async (e) => {
   e.target.reset(); toggleGJOptions(); renderBuilds(); renderOrders(); renderSummary();
 });
 
+async function renameBuild(i){
+  const b = builds[i];
+  const newName = prompt(currentLang==='en' ? 'New name / ID for this guitar:' : 'ชื่อ / รหัสใหม่สำหรับกีตาร์นี้:', b.name);
+  if (newName === null || !newName.trim()) return;
+  b.name = newName.trim();
+  await saveBuilds();
+  renderBuilds(); renderOrders();
+}
+
 function duplicateBuild(i){
   const b = builds[i];
   document.getElementById('b-type').value = b.type;
@@ -1435,6 +1482,7 @@ function duplicateBuild(i){
     if(b.type === 'Gypsy Jazz') document.getElementById('b-gj-bracing').value = b.bracing;
     else if(b.type === 'Classical') document.getElementById('b-classical-bracing').value = b.bracing;
   }
+  if(b.rosette) document.getElementById('b-rosette').value = b.rosette;
   document.getElementById('b-nut-width').value = b.nutWidth || '';
   document.getElementById('b-scale-length').value = b.scaleLength || '';
   document.getElementById('b-neck-profile').value = b.neckProfile || '';
@@ -1487,7 +1535,7 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
 });
 
 
-async function updateBuildStage(i, stage){ builds[i].stage = stage; builds[i].stageUpdated = Date.now(); await saveBuilds(); renderBuilds(); renderToday(); }
+async function updateBuildStage(i, stage){ builds[i].stage = stage; builds[i].stageUpdated = Date.now(); await saveBuilds(); renderBuilds(); }
 async function updateStockStatus(i, status){ finishedStock[i].status = status; await saveStock(); renderStock(); renderFinancials(); }
 async function updateOrderStatus(i, status){ orders[i].status = status; await saveOrders(); renderOrders(); renderFinancials(); }
 async function updateRepairStatus(i, status){ repairs[i].status = status; await saveRepairs(); renderRepairs(); }
@@ -1509,6 +1557,7 @@ async function moveToStock(i){
     shape: b.shape || '',
     pliage: b.pliage || '',
     bracing: b.bracing || '',
+    rosette: b.rosette || '',
     nutWidth: b.nutWidth || '',
     scaleLength: b.scaleLength || '',
     neckProfile: b.neckProfile || '',
