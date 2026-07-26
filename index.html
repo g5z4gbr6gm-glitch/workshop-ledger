@@ -789,7 +789,11 @@ function updateInventoryDropdowns() {
   const dropdowns = document.querySelectorAll('.inv-dropdown'); let options = '<option value="">-- None --</option>';
   inventory.forEach((item, i) => { options += `<option value="${i}">[${item.category.toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`; });
   options += '<option value="__new__">+ Add new item...</option>';
-  dropdowns.forEach(dd => dd.innerHTML = options);
+  dropdowns.forEach(dd => {
+    const prevValue = dd.value;
+    dd.innerHTML = options;
+    if (prevValue && prevValue !== '__new__' && Number(prevValue) < inventory.length) { dd.value = prevValue; }
+  });
 }
 
 const DROPDOWN_CATEGORY = {
@@ -1001,6 +1005,68 @@ function renderSuppliers(){
   `).join('') : '<div class="empty">No suppliers found.</div>';
 }
 
+let editingMaterialsIndex = null;
+const MATERIAL_SLOTS = [
+  { key: 'topWood', label: 'Top Wood' }, { key: 'backWood', label: 'Back & Sides' }, { key: 'neckWood', label: 'Neck Wood' },
+  { key: 'fbWood', label: 'Fingerboard' }, { key: 'tuners', label: 'Tuners' }, { key: 'frets', label: 'Frets' },
+  { key: 'bone', label: 'Bone (Nut/Saddle)' }, { key: 'tailpiece', label: 'Tailpiece' }, { key: 'strings', label: 'Strings' }
+];
+
+function materialDropdownOptions(selectedName){
+  let opts = '<option value="">-- None --</option>';
+  inventory.forEach((item, idx) => {
+    const sel = item.name === selectedName ? 'selected' : '';
+    opts += `<option value="${idx}" ${sel}>[${item.category.toUpperCase()}] ${escapeHtml(item.name)} (${item.qty} left)</option>`;
+  });
+  opts += '<option value="__new__">+ Add new item...</option>';
+  return opts;
+}
+
+function startEditMaterials(i){ editingMaterialsIndex = i; renderBuilds(); }
+function cancelEditMaterials(){ editingMaterialsIndex = null; renderBuilds(); }
+
+async function saveEditedMaterials(i){
+  const b = builds[i];
+  const skip = !!b.skipDeduct;
+  let newMaterialCost = 0;
+
+  for (const slot of MATERIAL_SLOTS) {
+    const dd = document.getElementById(`edit-mat-${slot.key}`);
+    const oldName = b[slot.key];
+    const val = dd.value;
+    const newName = (val && val !== '__new__') ? inventory[parseInt(val)].name : '';
+
+    if (oldName === newName) {
+      if (newName) { const item = inventory.find(x => x.name === newName); newMaterialCost += Number(item?.cost || 0); }
+      continue;
+    }
+    if (oldName && !skip) {
+      const oldItem = inventory.find(x => x.name === oldName);
+      if (oldItem) oldItem.qty = Number(oldItem.qty) + 1;
+    }
+    if (newName && !skip) {
+      const newItem = inventory.find(x => x.name === newName);
+      if (newItem) newItem.qty = Math.max(0, Number(newItem.qty) - 1);
+    }
+    if (newName) {
+      b[slot.key] = newName;
+      const newItem = inventory.find(x => x.name === newName);
+      if (newItem && !newItem.cost) {
+        const costInput = prompt(currentLang==='en' ? `What did "${newName}" cost per unit? (leave blank if unknown for now)` : `"${newName}" มีต้นทุนต่อหน่วยเท่าไร? (เว้นว่างได้หากยังไม่ทราบ)`, '');
+        if (costInput) { newItem.cost = costInput; }
+      }
+      if (newItem) newMaterialCost += Number(newItem.cost || 0);
+    } else {
+      delete b[slot.key];
+    }
+  }
+
+  b.materialCost = newMaterialCost;
+  editingMaterialsIndex = null;
+  await saveInventory(); await saveBuilds();
+  renderInventory(); renderBuilds(); renderSummary();
+}
+
 function renderBuilds(){
   const query = document.getElementById('buildSearch').value.toLowerCase();
   const list = document.getElementById('buildList');
@@ -1029,18 +1095,37 @@ function renderBuilds(){
       return `<label class="${isChecked ? 'done' : ''}"><input type="checkbox" onchange="toggleMilestone(${i}, '${m.id}')" ${isChecked ? 'checked' : ''}> ${currentLang === 'en' ? m.en : m.th}</label>`;
     }).join('');
 
+    const materialsBlock = editingMaterialsIndex === i
+      ? `<div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-top:8px;">
+          <div style="font-family:'Inter',sans-serif; font-size:0.75rem; color:var(--wood); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">${currentLang==='en'?'Edit materials':'แก้ไขวัสดุ'}</div>
+          <div class="row" style="flex-wrap:wrap; gap:8px;">
+            ${MATERIAL_SLOTS.map(slot => `
+              <div style="min-width:150px; flex:1;">
+                <label style="text-transform:none; font-size:0.7rem;">${slot.label}</label>
+                <select id="edit-mat-${slot.key}" class="utility inv-dropdown" style="width:100%;">${materialDropdownOptions(b[slot.key])}</select>
+              </div>
+            `).join('')}
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn" style="padding:6px 14px;font-size:0.8rem;" onclick="saveEditedMaterials(${i})">${currentLang==='en'?'Save':'บันทึก'}</button>
+            <button class="btn secondary" style="padding:6px 14px;font-size:0.8rem;" onclick="cancelEditMaterials()">${currentLang==='en'?'Cancel':'ยกเลิก'}</button>
+          </div>
+        </div>`
+      : (parts.length > 0 ? `<div class="card-specs"><div>${parts.join('</div><div>')}</div></div>` : '');
+
     return `
       <div class="card">
         <div class="card-main">
           <div class="card-title">${escapeHtml(b.name)} — ${escapeHtml(b.type)} ${b.media ? `<a href="${b.media}" target="_blank" class="btn secondary" style="padding: 2px 6px; font-size: 0.65rem; border-radius: 4px; text-decoration:none;">Media</a>` : ''}</div>
-          <div class="card-meta"><span class="badge stage">${STAGE_LABELS[b.stage]}</span><span>${b.customer ? `for <strong>${escapeHtml(b.customer)}</strong>` : 'speculative build'}</span>${isCust ? `<span style="color:var(--warn); font-weight:600;">Wait: ${daysElapsed} days</span>` : `<span>Started: ${b.started}</span>`}</div>
-          ${parts.length > 0 ? `<div class="card-specs"><div>${parts.join('</div><div>')}</div></div>` : ''}
+          <div class="card-meta"><span class="badge stage">${STAGE_LABELS[b.stage]}</span><span>${b.customer ? `for <strong>${escapeHtml(b.customer)}</strong>` : 'speculative build'}</span><span>Started: ${b.started}</span><span style="color:${isCust ? 'var(--warn)' : 'var(--wood-dim)'}; font-weight:600;">${daysElapsed} ${currentLang==='en' ? 'days in progress' : 'วันที่ผ่านมา'}</span>${b.materialCost ? `<span>${currentLang==='en'?'Materials so far':'ต้นทุนวัสดุ'}: ${formatCurrency(b.materialCost)}</span>` : ''}</div>
+          ${materialsBlock}
           ${specParts.length > 0 ? `<div class="card-specs">${specParts.join(' &nbsp;·&nbsp; ')}</div>` : ''}
           <div class="checklist"><div class="checklist-title">${currentLang === 'en' ? 'Milestones' : 'ความคืบหน้า'}</div><div class="checklist-items">${checksHTML}</div></div>
           <div class="stage-track">${track}</div>
           ${b.notes ? `<div class="card-note">${escapeHtml(b.notes)}</div>` : ''}
         </div>
         <div class="card-actions">
+          <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="startEditMaterials(${i})">${currentLang==='en'?'Edit Materials':'แก้ไขวัสดุ'}</button>
           <select class="utility" style="width:auto;padding:5px 8px;font-size:0.78rem" onchange="updateBuildStage(${i}, this.value)">${Object.entries(STAGE_LABELS).map(([k,v]) => `<option value="${k}" ${b.stage===k?'selected':''}>${v}</option>`).join('')}</select>
           <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;margin-top:5px;" onclick="moveToStock(${i})">${currentLang==='en'?'Move to Finished Stock':'ย้ายไปสต๊อกสำเร็จ'}</button>
           <button class="btn secondary" style="padding:4px 8px;font-size:0.7rem;" onclick="duplicateBuild(${i})">${currentLang==='en'?'Duplicate':'ทำซ้ำ'}</button>
@@ -1325,7 +1410,7 @@ document.getElementById('buildForm').addEventListener('submit', async (e) => {
   const pliageVal = isGJ ? document.getElementById('b-pliage').value : '';
   const bracingVal = isGJ ? document.getElementById('b-gj-bracing').value : (isClassical ? document.getElementById('b-classical-bracing').value : '');
   const skipDeduct = document.getElementById('b-skip-deduct').checked;
-  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null };
+  let buildData = { name: document.getElementById('b-name').value, type: document.getElementById('b-type').value, soundhole: soundholeVal, shape: shapeVal, pliage: pliageVal, bracing: bracingVal, nutWidth: document.getElementById('b-nut-width').value, scaleLength: document.getElementById('b-scale-length').value, neckProfile: document.getElementById('b-neck-profile').value, actionBass: document.getElementById('b-action-bass').value, actionTreble: document.getElementById('b-action-treble').value, saddleHeight: document.getElementById('b-saddle-height').value, stage: document.getElementById('b-stage').value, started: document.getElementById('b-started').value, customer: document.getElementById('b-customer').value, media: document.getElementById('b-media').value, notes: document.getElementById('b-notes').value, materialCost: 0, checklist: {}, stageUpdated: Date.now(), linkedOrderId: pendingLinkId ? Number(pendingLinkId) : null, skipDeduct: skipDeduct };
   let deductOccurred = false;
   dropdownIds.forEach((ddId, index) => {
     const val = document.getElementById(ddId).value;
